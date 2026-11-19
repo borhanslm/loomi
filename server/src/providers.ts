@@ -30,6 +30,8 @@ export const PROVIDERS: ProviderInfo[] = [
   { id: 'deepseek', name: 'DeepSeek', needsKey: true, needsUrl: false, caps: ['chat'], keyHelp: 'https://platform.deepseek.com/api_keys' },
   { id: 'elevenlabs', name: 'ElevenLabs', needsKey: true, needsUrl: false, caps: ['tts', 'stt'], keyHelp: 'https://elevenlabs.io/app/settings/api-keys' },
   { id: 'ollama', name: 'Ollama (مدل محلی)', needsKey: false, needsUrl: true, defaultUrl: 'http://localhost:11434', caps: ['chat', 'vision', 'embed'], keyHelp: 'https://ollama.com/download' },
+  // Any OpenAI-compatible API: OpenRouter, Groq, Together, Mistral, LM Studio, vLLM, LiteLLM, internal gateways…
+  { id: 'custom', name: 'API سفارشی (سازگار با OpenAI)', needsKey: false, needsUrl: true, defaultUrl: 'https://openrouter.ai/api/v1', caps: ['chat', 'vision', 'stt', 'tts', 'embed'], keyHelp: 'https://openrouter.ai/keys' },
 ];
 export const providerInfo = (id: string) => PROVIDERS.find(p => p.id === id);
 
@@ -58,8 +60,8 @@ export async function addKey(db: Db, masterKey: Buffer | null, input: { provider
   const info = providerInfo(input.provider);
   if (!info) throw new ProviderError('ارائه‌دهنده‌ی ناشناخته.');
   const apiKey = (input.apiKey ?? '').trim();
-  if (info.needsKey) {
-    if (!apiKey) throw new ProviderError('کلید API را وارد کنید.');
+  if (info.needsKey && !apiKey) throw new ProviderError('کلید API را وارد کنید.');
+  if (apiKey) {
     if (!masterKey) throw new ProviderError('LOOMI_MASTER_KEY روی سرور تنظیم نشده؛ بدون آن کلیدها امن ذخیره نمی‌شوند.');
     if (apiKey.length > 500 || /\s/.test(apiKey)) throw new ProviderError('کلید API معتبر به نظر نمی‌رسد.');
   }
@@ -133,6 +135,10 @@ export async function listModels(f: Fetcher, provider: string, apiKey: string | 
     case 'ollama': {
       const j = await getJson(f, `${baseUrl}/api/tags`, {}) as { models?: unknown };
       return ids(j.models, x => x.name);
+    }
+    case 'custom': {
+      const j = await getJson(f, `${baseUrl}/models`, k ? { authorization: `Bearer ${k}` } : {}) as { data?: unknown; models?: unknown };
+      return ids(Array.isArray(j.data) ? j.data : j.models, x => x.id ?? x.name).sort();
     }
     default:
       throw new ProviderError('ارائه‌دهنده‌ی ناشناخته.');

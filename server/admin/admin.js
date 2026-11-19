@@ -177,7 +177,8 @@ async function ai(main) {
 
   const prov = $('#akProvider'), help = () => {
     const p = info(prov.value);
-    $('#akKeyWrap').hidden = !p.needsKey;
+    $('#akKeyWrap').hidden = !p.needsKey && p.id !== 'custom';
+    $('#akKeyWrap span').textContent = p.needsKey ? 'کلید API' : 'کلید API (اگر لازم است)';
     $('#akUrlWrap').hidden = !p.needsUrl;
     $('#akUrl').value = p.needsUrl ? (p.defaultUrl || '') : '';
     $('#akHelp').innerHTML = `${p.needsKey ? 'کلید را از این‌جا بگیرید' : 'نصب'}: <a href="${esc(p.keyHelp)}" target="_blank" rel="noopener noreferrer" class="ltr">${esc(p.keyHelp)}</a> · توانایی‌ها: ${p.caps.map(c => esc((d.capabilities.find(x => x.id === c) || {}).label || c)).join('، ')}`;

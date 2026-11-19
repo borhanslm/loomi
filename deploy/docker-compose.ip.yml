@@ -1,0 +1,6 @@
+# Used by get.sh when there is no domain: Loomi is reached directly at http://<server-ip>:8787 (no HTTPS).
+services:
+  server:
+    environment:
+      LOOMI_PUBLIC_URL: ${LOOMI_PUBLIC_URL}
+    ports: ["8787:8787"]

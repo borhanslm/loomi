@@ -34,22 +34,27 @@ echo "Node: $($NODE_BIN -v)"
 id loomi >/dev/null 2>&1 || useradd --system --home "$DATA" --shell /usr/sbin/nologin loomi
 mkdir -p "$APP" "$DATA" "$ETC"
 rm -rf "$APP/dist" "$APP/node_modules"
-cp -r "$HERE/dist" "$HERE/node_modules" "$HERE/package.json" "$APP/"
+rm -rf "$APP/admin"
+cp -r "$HERE/dist" "$HERE/admin" "$HERE/node_modules" "$HERE/package.json" "$APP/"
 chown -R loomi:loomi "$DATA"
 
-# 3) Settings (created once; never overwritten, so keys survive upgrades)
+# 3) Settings (created once; the master key is never replaced, so saved API keys survive upgrades).
+#    LOOMI_PUBLIC_URL / LOOMI_HOST / LOOMI_MASTER_KEY may be passed in (get.sh does).
 if [ ! -f "$ETC/loomi.env" ]; then
   ip=$(hostname -I | awk '{print $1}')
   umask 077
   cat > "$ETC/loomi.env" <<EOF
 LOOMI_PORT=$PORT
-LOOMI_HOST=0.0.0.0
+LOOMI_HOST=${LOOMI_HOST:-0.0.0.0}
 LOOMI_DATA_DIR=$DATA/db
-LOOMI_PUBLIC_URL=http://$ip:$PORT
-LOOMI_MASTER_KEY=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+LOOMI_PUBLIC_URL=${LOOMI_PUBLIC_URL:-http://$ip:$PORT}
+LOOMI_MASTER_KEY=${LOOMI_MASTER_KEY:-$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')}
 EOF
   chown root:loomi "$ETC/loomi.env"; chmod 640 "$ETC/loomi.env"
   echo "تنظیمات ساخته شد: $ETC/loomi.env — از LOOMI_MASTER_KEY یک نسخه‌ی امن نگه دارید."
+else
+  if [ -n "${LOOMI_PUBLIC_URL:-}" ]; then sed -i "s#^LOOMI_PUBLIC_URL=.*#LOOMI_PUBLIC_URL=$LOOMI_PUBLIC_URL#" "$ETC/loomi.env"; fi
+  if [ -n "${LOOMI_HOST:-}" ]; then sed -i "s#^LOOMI_HOST=.*#LOOMI_HOST=$LOOMI_HOST#" "$ETC/loomi.env"; fi
 fi
 
 # 4) Always-on service
@@ -79,21 +84,23 @@ systemctl daemon-reload
 systemctl enable --now loomi
 systemctl restart loomi
 
-# 5) Pairing helper
-cat > /usr/local/bin/loomi-pair <<EOF
+# 5) Helpers: pairing code, and the admin panel password link
+for c in pair admin; do
+  cat > "/usr/local/bin/loomi-$c" <<EOF
 #!/bin/sh
-# New one-time pairing code (stop/start not needed)
 set -a; . $ETC/loomi.env; set +a
-exec sudo -E -u loomi $NODE_BIN $APP/dist/cli.js pair
+exec sudo -E -u loomi $NODE_BIN $APP/dist/cli.js $c
 EOF
-chmod 755 /usr/local/bin/loomi-pair
+  chmod 755 "/usr/local/bin/loomi-$c"
+done
 
 sleep 3
 if curl -fsS "http://127.0.0.1:$PORT/v1/health" >/dev/null; then
   url=$(grep ^LOOMI_PUBLIC_URL "$ETC/loomi.env" | cut -d= -f2)
   echo
   echo "✅ لومی اجرا شد: $url"
-  echo "برای جفت کردن گوشی:  sudo loomi-pair"
+  echo "رمز پنل ادمین:       sudo loomi-admin"
+  echo "جفت کردن گوشی:       sudo loomi-pair"
   echo "لاگ‌ها:              journalctl -u loomi -f"
 else
   echo "❌ لومی بالا نیامد. لاگ را ببینید: journalctl -u loomi -n 50 --no-pager"; exit 1

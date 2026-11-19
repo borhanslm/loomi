@@ -12,6 +12,7 @@ const H = { 'x-loomi-admin': '1' };
 // Fake provider APIs: a valid key returns a model list; anything else is rejected.
 const fakeFetch = (async (url: string | URL, init?: RequestInit) => {
   const h = (init?.headers ?? {}) as Record<string, string>;
+  if (String(url) === 'https://gw.example/v1/models' && h.authorization === 'Bearer or-key-1234') return Response.json({ data: [{ id: 'm-b' }, { id: 'm-a' }] });
   const good = h['x-api-key'] === 'sk-ant-good' || h['xi-api-key'] === 'el-good';
   if (!good) return new Response('{}', { status: 401 });
   if (String(url).includes('anthropic')) return Response.json({ data: [{ id: 'claude-x' }, { id: 'claude-y' }] });
@@ -103,6 +104,15 @@ describe('admin AI providers', () => {
     const list = await app.inject({ method: 'GET', url: '/admin/api/providers', headers: { cookie } });
     expect(list.body).not.toContain('sk-ant-good');
     expect(list.body).not.toContain('key_sealed');
+  });
+
+  it('supports a custom OpenAI-compatible API (address + optional key)', async () => {
+    const r = await app.inject({ method: 'POST', url: '/admin/api/providers/keys', headers: { cookie, ...H }, payload: { provider: 'custom', label: 'OpenRouter', baseUrl: 'https://gw.example/v1/', apiKey: 'or-key-1234' } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json()).toMatchObject({ provider: 'custom', baseUrl: 'https://gw.example/v1', keyLast4: '1234', lastTestOk: true, models: ['m-a', 'm-b'] });
+    expect(r.body).not.toContain('or-key-1234');
+    const bad = await app.inject({ method: 'POST', url: '/admin/api/providers/keys', headers: { cookie, ...H }, payload: { provider: 'custom', baseUrl: 'not a url' } });
+    expect(bad.statusCode).toBe(400);
   });
 
   it('reports a rejected key in Persian', async () => {
