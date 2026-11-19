@@ -127,9 +127,21 @@ async function dashboard(main) {
     </div></div>`;
 }
 
+function hintHtml(s) {
+  if (!s) return '';
+  const pick = p => `<button type="button" class="chip-btn" data-pick="${esc(p.model)}" data-key="${esc(p.keyId)}" title="${esc(p.why)}"><span class="ltr">${esc(p.model)}</span><span class="muted">${esc(p.why)}</span></button>`;
+  return `<div class="route-hint">
+    ${s.warning ? `<div class="hint-warn">⚠ ${esc(s.warning)}</div>` : ''}
+    ${s.main ? `<div class="small"><b>پیشنهاد لومی:</b> <span class="ltr">${esc(s.main.model)}</span> <span class="muted">— ${esc(s.main.why)}</span>${s.fallback ? ` · <b>پشتیبان:</b> <span class="ltr">${esc(s.fallback.model)}</span>` : ''}</div>` : `<div class="small muted">${esc(s.missing || '')}</div>`}
+    ${s.options && s.options.length > 1 ? `<div class="chips"><span class="muted small">مدل‌های مناسب:</span>${s.options.map(pick).join('')}</div>` : ''}
+  </div>`;
+}
+
 async function ai(main) {
-  const d = await api('/providers');
+  const [d, sug] = await Promise.all([api('/providers'), api('/providers/suggest')]);
+  const sugOf = cap => sug.find(x => x.capability === cap) || {};
   const info = id => d.catalog.find(p => p.id === id) || { name: id, caps: [] };
+  const hint = cap => hintHtml(sugOf(cap));
   const keyOpts = (cap, sel) => '<option value="">— هیچ —</option>' + d.keys.filter(k => info(k.provider).caps.includes(cap))
     .map(k => `<option value="${esc(k.id)}" ${k.id === sel ? 'selected' : ''}>${esc(k.label)}</option>`).join('');
   const modelList = (cap, keyId) => {
@@ -171,8 +183,9 @@ async function ai(main) {
     </div>
 
     <div class="card">
-      <h2>هر کار با کدام هوش مصنوعی؟</h2>
-      <p class="muted small">برای هر توانایی یک کلید و مدل اصلی، و اگر خواستید یک پشتیبان (وقتی اصلی خطا داد) انتخاب کنید.</p>
+      <div class="page-head"><div><h2>هر کار با کدام هوش مصنوعی؟</h2>
+        <p class="muted small">برای هر توانایی یک کلید و مدل اصلی، و یک پشتیبان (وقتی اصلی خطا داد). یا بگذارید لومی خودش انتخاب کند.</p></div>
+        <button class="btn primary" id="autoAll" type="button"><svg class="i"><use href="#i-spark"/></svg>انتخاب خودکار برای همه</button></div>
       ${d.capabilities.map(c => {
         const r = d.routes.find(x => x.capability === c.id) || {};
         return `<form class="route" data-cap="${c.id}">
@@ -181,7 +194,8 @@ async function ai(main) {
           <label class="field"><span>مدل اصلی</span><input name="model" class="ltr" list="ml-${c.id}" value="${esc(r.model || '')}"><datalist id="ml-${c.id}">${modelList(c.id, r.keyId)}</datalist></label>
           <label class="field"><span>کلید پشتیبان</span><select name="fallbackKeyId">${keyOpts(c.id, r.fallbackKeyId)}</select></label>
           <label class="field"><span>مدل پشتیبان</span><input name="fallbackModel" class="ltr" list="mlf-${c.id}" value="${esc(r.fallbackModel || '')}"><datalist id="mlf-${c.id}">${modelList(c.id, r.fallbackKeyId)}</datalist></label>
-          <button class="btn sm" type="submit">ذخیره</button>
+          <div class="route-actions"><button class="btn sm ghost" type="button" data-auto="${c.id}" title="انتخاب خودکار"><svg class="i"><use href="#i-spark"/></svg>خودکار</button><button class="btn sm" type="submit">ذخیره</button></div>
+          ${hint(c.id)}
         </form>`;
       }).join('')}
     </div>`;
@@ -225,6 +239,22 @@ async function ai(main) {
     if (!confirm('این کلید از سرور حذف شود؟ کارهایی که از آن استفاده می‌کنند بی‌کلید می‌مانند.')) return;
     busy(b, async () => { await api('/providers/keys/' + b.dataset.del, { method: 'DELETE' }); toast('کلید حذف شد.'); route(); });
   }));
+  $('#autoAll').addEventListener('click', e => busy(e.currentTarget, async () => {
+    const r = await api('/providers/auto', { method: 'POST', body: { capability: 'all' } });
+    toast(r.applied.length ? `برای ${fa(r.applied.length)} توانایی انتخاب شد و ذخیره شد.` : 'مدل مناسبی پیدا نشد؛ اول یک کلید اضافه کنید.', !r.applied.length);
+    route();
+  }));
+  main.querySelectorAll('[data-auto]').forEach(b => b.addEventListener('click', () => busy(b, async () => {
+    const r = await api('/providers/auto', { method: 'POST', body: { capability: b.dataset.auto } });
+    toast(r.applied.length ? 'انتخاب شد و ذخیره شد.' : (sugOf(b.dataset.auto).missing || 'مدل مناسبی پیدا نشد.'), !r.applied.length);
+    route();
+  })));
+  main.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => {
+    const f = b.closest('form.route');
+    f.keyId.value = b.dataset.key; f.model.value = b.dataset.pick;
+    f.querySelector('button[type=submit]').focus();
+    toast('انتخاب شد؛ «ذخیره» را بزنید.');
+  }));
   main.querySelectorAll('form.route').forEach(f => {
     const refreshList = (sel, listId) => { $('#' + listId).innerHTML = modelList(f.dataset.cap, sel.value); };
     f.keyId.addEventListener('change', () => refreshList(f.keyId, 'ml-' + f.dataset.cap));
@@ -237,6 +267,7 @@ async function ai(main) {
           fallbackKeyId: f.fallbackKeyId.value || null, fallbackModel: f.fallbackModel.value || null,
         } });
         toast('ذخیره شد.');
+        route();
       });
     });
   });
@@ -279,7 +310,7 @@ async function devices(main) {
 const ACTIONS = {
   'device.paired': 'دستگاه جفت شد', 'device.revoked': 'دسترسی دستگاه قطع شد', 'pair.code': 'کد جفت‌سازی ساخته شد',
   'admin.login': 'ورود ادمین', 'admin.login_failed': 'ورود ناموفق ادمین', 'admin.password_set': 'رمز ادمین تنظیم شد',
-  'provider.key_added': 'کلید هوش مصنوعی اضافه شد', 'provider.key_deleted': 'کلید هوش مصنوعی حذف شد', 'provider.route_set': 'انتخاب هوش مصنوعی تغییر کرد', 'provider.tried': 'آزمون مغز لومی',
+  'provider.key_added': 'کلید هوش مصنوعی اضافه شد', 'provider.key_deleted': 'کلید هوش مصنوعی حذف شد', 'provider.route_set': 'انتخاب هوش مصنوعی تغییر کرد', 'provider.tried': 'آزمون مغز لومی', 'provider.auto': 'انتخاب خودکار مدل‌ها',
 };
 async function log(main) {
   const rows = await api('/audit?limit=200');

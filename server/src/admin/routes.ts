@@ -19,6 +19,7 @@ import {
   addKey, CAPABILITIES, deleteKey, endpointFor, type Fetcher, listKeys, listRoutes, PROVIDERS, ProviderError, type Route, setRoute, testKey,
 } from '../providers.js';
 import { AiError, chat } from '../ai/openai-compat.js';
+import { checkChoice, suggest } from '../ai/recommend.js';
 
 const COOKIE = 'loomi_admin';
 const ADMIN_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../admin');
@@ -202,6 +203,36 @@ export async function adminPlugin(app: FastifyInstance, deps: AdminDeps) {
       await audit(db, 'provider.route_set', { userId: req.adminUser }, { capability: req.body.capability, keyId: req.body.keyId, model: req.body.model });
       return { ok: true, routes: await listRoutes(db) };
     } catch (e) { return fail(reply, e); }
+  });
+
+  // Automatic choice: suggested main + fallback per capability, the suitable models, and warnings
+  // for saved choices that don't fit (e.g. a voice model set for listening).
+  const suggestions = async () => {
+    const keys = await listKeys(db), routes = await listRoutes(db);
+    return CAPABILITIES.map(c => {
+      const r = routes.find(x => x.capability === c.id)!;
+      return {
+        ...suggest(c.id, keys),
+        warning: checkChoice(c.id, keys.find(k => k.id === r.keyId), r.model) ?? checkChoice(c.id, keys.find(k => k.id === r.fallbackKeyId), r.fallbackModel),
+      };
+    });
+  };
+  app.get('/admin/api/providers/suggest', { schema: { hide: true } }, async () => suggestions());
+
+  app.post<{ Body: { capability: string } }>('/admin/api/providers/auto', {
+    schema: { hide: true, body: { type: 'object', required: ['capability'], properties: { capability: { type: 'string' } } } },
+  }, async (req, reply) => {
+    const want = req.body.capability;
+    const list = (await suggestions()).filter(s => want === 'all' || s.capability === want);
+    if (!list.length) return reply.code(400).send({ error: 'توانایی ناشناخته.' });
+    const applied: string[] = [];
+    for (const s of list) {
+      if (!s.main) continue;
+      await setRoute(db, { capability: s.capability, keyId: s.main.keyId, model: s.main.model, fallbackKeyId: s.fallback?.keyId ?? null, fallbackModel: s.fallback?.model ?? null });
+      applied.push(s.capability);
+    }
+    await audit(db, 'provider.auto', { userId: req.adminUser }, { applied });
+    return { applied, routes: await listRoutes(db), suggestions: await suggestions() };
   });
 
   // Try the brain with a short prompt (uses a little real credit — only when the admin clicks).
