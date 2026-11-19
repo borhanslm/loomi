@@ -13,6 +13,8 @@ import {
 import { parseMasterKey } from './crypto.js';
 import { adminPlugin, adminSetupLink } from './admin/routes.js';
 import type { Fetcher } from './providers.js';
+import { ITEM_TYPES, understand } from './brain/capture.js';
+import { deleteItem, ItemError, listItems, saveCapture, updateItem } from './items.js';
 
 export const VERSION = '0.2.0';
 export const API_VERSION = 1;
@@ -146,6 +148,76 @@ export async function buildApp(opts: { db: Db; config: Config; logger?: boolean;
     if (!(await revokeDevice(db, d.userId, req.params.id))) return reply.code(404).send({ error: 'این دستگاه پیدا نشد.' });
     await audit(db, 'device.revoked', { userId: d.userId, deviceId: d.id }, { revoked: req.params.id });
     bus.emit(d.userId, { type: 'devices' });
+    return { ok: true };
+  });
+
+  // ── the second brain: capture → items ──
+  const ItemT = Type.Object({
+    id: Type.String(), type: Type.Union(ITEM_TYPES.map(t => Type.Literal(t))), title: Type.String(), notes: Type.Union([Type.String(), Type.Null()]),
+    dueAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]), allDay: Type.Boolean(),
+    people: Type.Array(Type.String()), place: Type.Union([Type.String(), Type.Null()]),
+    done: Type.Boolean(), doneAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
+    createdAt: Type.String({ format: 'date-time' }), updatedAt: Type.String({ format: 'date-time' }), captureId: Type.Union([Type.String(), Type.Null()]),
+  });
+  const CaptureBodyT = Type.Object({
+    text: Type.String({ minLength: 1, maxLength: 4000 }),
+    clientId: Type.Optional(Type.String({ maxLength: 64 })),
+    /** the device's UTC offset in minutes (Tehran = 210), so «فردا ساعت ۵» means the user's 5 o'clock */
+    tzOffset: Type.Optional(Type.Integer({ minimum: -720, maximum: 840 })),
+  });
+
+  app.post<{ Body: Static<typeof CaptureBodyT> }>('/v1/capture', {
+    config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
+    schema: {
+      body: CaptureBodyT,
+      response: { 200: Type.Object({
+        captureId: Type.String(), via: Type.String(), model: Type.Union([Type.String(), Type.Null()]),
+        warning: Type.Union([Type.String(), Type.Null()]), duplicate: Type.Boolean(), items: Type.Array(ItemT),
+      }) },
+    },
+  }, async req => {
+    const d = req.device!;
+    const offset = req.body.tzOffset ?? 210;
+    const u = await understand(req.body.text, new Date(), offset, { db, masterKey, fetcher: opts.fetcher });
+    const r = await saveCapture(db, d.userId, d.id, req.body.text, req.body.clientId ?? null, u);
+    if (!r.duplicate) bus.emit(d.userId, { type: 'items' });
+    return { captureId: r.captureId, via: u.via, model: u.model, warning: u.warning, duplicate: r.duplicate, items: r.items };
+  });
+
+  app.get<{ Querystring: { status?: 'open' | 'done' | 'all'; type?: string; q?: string; limit?: number } }>('/v1/items', {
+    schema: {
+      querystring: Type.Object({
+        status: Type.Optional(Type.Union([Type.Literal('open'), Type.Literal('done'), Type.Literal('all')])),
+        type: Type.Optional(Type.String()), q: Type.Optional(Type.String({ maxLength: 200 })), limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 1000 })),
+      }),
+      response: { 200: Type.Array(ItemT) },
+    },
+  }, async req => listItems(db, req.device!.userId, req.query));
+
+  const PatchT = Type.Object({
+    title: Type.Optional(Type.String({ maxLength: 200 })), notes: Type.Optional(Type.Union([Type.String({ maxLength: 2000 }), Type.Null()])),
+    type: Type.Optional(Type.String()), dueAt: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+    allDay: Type.Optional(Type.Boolean()), done: Type.Optional(Type.Boolean()),
+  });
+  app.patch<{ Params: { id: string }; Body: Static<typeof PatchT> }>('/v1/items/:id', {
+    schema: { params: Type.Object({ id: Type.String() }), body: PatchT, response: { 200: ItemT, 400: ErrorT, 404: ErrorT } },
+  }, async (req, reply) => {
+    try {
+      const it = await updateItem(db, req.device!.userId, req.params.id, req.body);
+      if (!it) return reply.code(404).send({ error: 'این مورد پیدا نشد.' });
+      bus.emit(req.device!.userId, { type: 'items' });
+      return it;
+    } catch (e) {
+      if (e instanceof ItemError) return reply.code(400).send({ error: e.message });
+      throw e;
+    }
+  });
+
+  app.delete<{ Params: { id: string } }>('/v1/items/:id', {
+    schema: { params: Type.Object({ id: Type.String() }), response: { 200: Type.Object({ ok: Type.Boolean() }), 404: ErrorT } },
+  }, async (req, reply) => {
+    if (!(await deleteItem(db, req.device!.userId, req.params.id))) return reply.code(404).send({ error: 'این مورد پیدا نشد.' });
+    bus.emit(req.device!.userId, { type: 'items' });
     return { ok: true };
   });
 

@@ -90,6 +90,36 @@ const MIGRATIONS: string[] = [
      fallback_key_id TEXT REFERENCES provider_keys(id) ON DELETE SET NULL,
      fallback_model  TEXT
    );`,
+  // 3: the second brain — everything the user tells Loomi, and the items Loomi makes from it
+  `CREATE TABLE captures (
+     id          TEXT PRIMARY KEY,
+     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     device_id   TEXT,
+     client_id   TEXT,
+     text        TEXT NOT NULL,
+     via         TEXT NOT NULL DEFAULT 'rules',
+     model       TEXT,
+     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+     UNIQUE (user_id, client_id)
+   );
+   CREATE TABLE items (
+     id          TEXT PRIMARY KEY,
+     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     capture_id  TEXT REFERENCES captures(id) ON DELETE SET NULL,
+     type        TEXT NOT NULL,
+     title       TEXT NOT NULL,
+     notes       TEXT,
+     due_at      TIMESTAMPTZ,
+     all_day     BOOLEAN NOT NULL DEFAULT false,
+     people      JSONB NOT NULL DEFAULT '[]'::jsonb,
+     place       TEXT,
+     done_at     TIMESTAMPTZ,
+     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+     deleted_at  TIMESTAMPTZ
+   );
+   CREATE INDEX items_user_due ON items (user_id, due_at) WHERE deleted_at IS NULL;
+   CREATE INDEX items_user_created ON items (user_id, created_at DESC) WHERE deleted_at IS NULL;`,
 ];
 
 export async function migrate(db: Db): Promise<void> {

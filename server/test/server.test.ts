@@ -95,8 +95,12 @@ describe('crypto', () => {
     const s = seal('sk-ant-secret', key);
     expect(s).not.toContain('secret');
     expect(open(s, key)).toBe('sk-ant-secret');
-    const bad = s.slice(0, -2) + (s.endsWith('A') ? 'BB' : 'AA');
-    expect(() => open(bad, key)).toThrow();
+    // flip one byte of the ciphertext (editing base64 text directly can leave the bytes unchanged)
+    const [v, iv, tag, data] = s.split('.');
+    const bytes = Buffer.from(data, 'base64url'); bytes[0] ^= 0xff;
+    expect(() => open([v, iv, tag, bytes.toString('base64url')].join('.'), key)).toThrow();
+    const tagBytes = Buffer.from(tag, 'base64url'); tagBytes[0] ^= 0xff;
+    expect(() => open([v, iv, tagBytes.toString('base64url'), data].join('.'), key)).toThrow();
     expect(() => parseMasterKey('short')).toThrow();
   });
 });

@@ -349,6 +349,620 @@
           }
         }
       }
+    },
+    "/v1/capture": {
+      "post": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "properties": {
+                  "text": {
+                    "minLength": 1,
+                    "maxLength": 4000,
+                    "type": "string"
+                  },
+                  "clientId": {
+                    "maxLength": 64,
+                    "type": "string"
+                  },
+                  "tzOffset": {
+                    "minimum": -720,
+                    "maximum": 840,
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "captureId",
+                    "via",
+                    "model",
+                    "warning",
+                    "duplicate",
+                    "items"
+                  ],
+                  "properties": {
+                    "captureId": {
+                      "type": "string"
+                    },
+                    "via": {
+                      "type": "string"
+                    },
+                    "model": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "warning": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "duplicate": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "type",
+                          "title",
+                          "notes",
+                          "dueAt",
+                          "allDay",
+                          "people",
+                          "place",
+                          "done",
+                          "doneAt",
+                          "createdAt",
+                          "updatedAt",
+                          "captureId"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "task"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "reminder"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "shopping"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "idea"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "note"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "event"
+                                ]
+                              }
+                            ]
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "notes": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "dueAt": {
+                            "format": "date-time",
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "allDay": {
+                            "type": "boolean"
+                          },
+                          "people": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "place": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "done": {
+                            "type": "boolean"
+                          },
+                          "doneAt": {
+                            "format": "date-time",
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "createdAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "updatedAt": {
+                            "format": "date-time",
+                            "type": "string"
+                          },
+                          "captureId": {
+                            "type": "string",
+                            "nullable": true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/items": {
+      "get": {
+        "parameters": [
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "open"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "done"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "all"
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "type",
+            "required": false
+          },
+          {
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": false
+          },
+          {
+            "schema": {
+              "minimum": 1,
+              "maximum": 1000,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "type",
+                      "title",
+                      "notes",
+                      "dueAt",
+                      "allDay",
+                      "people",
+                      "place",
+                      "done",
+                      "doneAt",
+                      "createdAt",
+                      "updatedAt",
+                      "captureId"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "enum": [
+                              "task"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "reminder"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "shopping"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "idea"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "note"
+                            ]
+                          },
+                          {
+                            "type": "string",
+                            "enum": [
+                              "event"
+                            ]
+                          }
+                        ]
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "notes": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "dueAt": {
+                        "format": "date-time",
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "allDay": {
+                        "type": "boolean"
+                      },
+                      "people": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "place": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "done": {
+                        "type": "boolean"
+                      },
+                      "doneAt": {
+                        "format": "date-time",
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "createdAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "updatedAt": {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      "captureId": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/items/{id}": {
+      "patch": {
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "maxLength": 200,
+                    "type": "string"
+                  },
+                  "notes": {
+                    "maxLength": 2000,
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "dueAt": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "allDay": {
+                    "type": "boolean"
+                  },
+                  "done": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "type",
+                    "title",
+                    "notes",
+                    "dueAt",
+                    "allDay",
+                    "people",
+                    "place",
+                    "done",
+                    "doneAt",
+                    "createdAt",
+                    "updatedAt",
+                    "captureId"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "task"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "reminder"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "shopping"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "idea"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "note"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "event"
+                          ]
+                        }
+                      ]
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "notes": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "dueAt": {
+                      "format": "date-time",
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "allDay": {
+                      "type": "boolean"
+                    },
+                    "people": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "place": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "done": {
+                      "type": "boolean"
+                    },
+                    "doneAt": {
+                      "format": "date-time",
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "createdAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "updatedAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "captureId": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "ok"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [
