@@ -1,37 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="Loomi — your second brain. A self-hosted, open-source personal AI assistant.">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#1B1838"/>
-      <stop offset="1" stop-color="#3B2C8F"/>
-    </linearGradient>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8E7FF0"/>
-      <stop offset="1" stop-color="#5B47C9"/>
-    </linearGradient>
-    <radialGradient id="glow" cx=".8" cy=".2" r=".6">
-      <stop offset="0" stop-color="#8E7FF0" stop-opacity=".55"/>
-      <stop offset="1" stop-color="#8E7FF0" stop-opacity="0"/>
-    </radialGradient>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="Loomi — your second brain. A self-hosted, open-source personal AI assistant."><defs><linearGradient id="ink" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1A1346"/><stop offset=".6" stop-color="#0E0B24"/><stop offset="1" stop-color="#0B0A1C"/></linearGradient>
+<radialGradient id="a1" cx=".08" cy=".05" r=".7"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".55"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="a2" cx="1" cy="1" r=".6"><stop offset="0" stop-color="#22D3EE" stop-opacity=".3"/><stop offset="1" stop-color="#22D3EE" stop-opacity="0"/></radialGradient>
+<linearGradient id="word" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D8CCFF"/></linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B1D74"/><stop offset=".55" stop-color="#151036"/><stop offset="1" stop-color="#0B0A1C"/></linearGradient>
+    <radialGradient id="aur1" cx=".15" cy=".08" r=".8"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".7"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/></radialGradient>
+    <radialGradient id="aur2" cx=".95" cy=".98" r=".7"><stop offset="0" stop-color="#22D3EE" stop-opacity=".38"/><stop offset="1" stop-color="#22D3EE" stop-opacity="0"/></radialGradient>
+    <linearGradient id="ringA" gradientUnits="userSpaceOnUse" x1="118" y1="172" x2="298" y2="352"><stop offset="0" stop-color="#D8CCFF"/><stop offset="1" stop-color="#7C5CFF"/></linearGradient>
+    <linearGradient id="ringB" gradientUnits="userSpaceOnUse" x1="214" y1="352" x2="394" y2="172"><stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#E6FCFF"/></linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF0C2"/><stop offset="1" stop-color="#FFB547"/></linearGradient>
+    <radialGradient id="sparkGlow"><stop offset="0" stop-color="#FFC861" stop-opacity=".5"/><stop offset="1" stop-color="#FFC861" stop-opacity="0"/></radialGradient>
   </defs>
-  <rect width="1200" height="360" rx="28" fill="url(#bg)"/>
-  <rect width="1200" height="360" rx="28" fill="url(#glow)"/>
-  <!-- soft constellation: ideas, tasks, reminders connecting -->
-  <g stroke="#B9AEFF" stroke-opacity=".25" stroke-width="2" fill="none">
-    <path d="M760 90 L880 150 L1010 110 L1100 200 L960 260 L840 230 Z"/>
-    <path d="M880 150 L960 260 M1010 110 L960 260"/>
+  <rect width="1200" height="360" rx="28" fill="url(#ink)"/><rect width="1200" height="360" rx="28" fill="url(#a1)"/><rect width="1200" height="360" rx="28" fill="url(#a2)"/>
+  <circle cx="620" cy="70" r="1.6" fill="#fff" opacity="0.5"/><circle cx="760" cy="40" r="1.1" fill="#fff" opacity="0.35"/><circle cx="900" cy="110" r="1.4" fill="#fff" opacity="0.45"/><circle cx="1080" cy="60" r="1.8" fill="#fff" opacity="0.55"/><circle cx="1140" cy="250" r="1.2" fill="#fff" opacity="0.35"/><circle cx="980" cy="300" r="1" fill="#fff" opacity="0.3"/><circle cx="700" cy="300" r="1.2" fill="#fff" opacity="0.3"/><circle cx="560" cy="250" r="1" fill="#fff" opacity="0.25"/>
+  <g transform="translate(70 80) scale(.72) translate(-96 -92)">
+  <clipPath id="upper"><rect x="0" y="0" width="512" height="262"/></clipPath>
+  <clipPath id="lower"><rect x="0" y="262" width="512" height="250"/></clipPath>
+  <circle cx="208" cy="262" r="90" fill="none" stroke="url(#ringA)" stroke-width="32"/>
+  <circle cx="304" cy="262" r="90" fill="none" stroke="url(#ringB)" stroke-width="32"/>
+  <g clip-path="url(#lower)">
+    <circle cx="304" cy="262" r="90" fill="none" stroke="url(#ringB)" stroke-width="32"/>
   </g>
-  <g fill="#D9D3FF">
-    <circle cx="760" cy="90" r="6"/><circle cx="880" cy="150" r="8"/><circle cx="1010" cy="110" r="6"/>
-    <circle cx="1100" cy="200" r="7"/><circle cx="960" cy="260" r="9" fill="#FFD66B"/><circle cx="840" cy="230" r="5"/>
+  <g clip-path="url(#upper)">
+    <circle cx="208" cy="262" r="90" fill="none" stroke="url(#ringA)" stroke-width="32"/>
   </g>
-  <!-- logo -->
-  <g transform="translate(80 92)">
-    <rect width="176" height="176" rx="44" fill="url(#g)"/>
-    <path d="M60 46v72h56" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="118" cy="58" r="14" fill="#FFD66B"/>
-    <circle cx="118" cy="58" r="25" fill="none" stroke="#FFD66B" stroke-opacity=".35" stroke-width="5"/>
-  </g>
-  <text x="300" y="168" fill="#FFFFFF" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="84" font-weight="800" letter-spacing="-1">Loomi</text>
-  <text x="304" y="218" fill="#D9D3FF" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="500">Your second brain — a personal AI assistant</text>
-  <text x="304" y="262" fill="#A99EE6" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22">Self-hosted · Open source · Any AI you choose · Android · Windows</text>
+  <circle cx="392" cy="132" r="34" fill="url(#sparkGlow)"/>
+  <path d="M392 108 C395 126 398 129 416 132 C398 135 395 138 392 156 C389 138 386 135 368 132 C386 129 389 126 392 108 Z" fill="url(#spark)"/>
+</g>
+  <text x="340" y="182" fill="url(#word)" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="96" font-weight="700" letter-spacing="-2">Loomi</text>
+  <text x="344" y="232" fill="#C4B5FD" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30">your second brain</text>
+  <text x="344" y="276" fill="#9B93C9" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="20">Self-hosted · Open source · Any AI you choose · Android · Windows</text>
 </svg>

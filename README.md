@@ -79,13 +79,19 @@ curl -fsSL https://raw.githubusercontent.com/borhanslm/loomi/main/deploy/get.sh 
 
 **۳.** در پنل ادمین (`https://دامنه‌ی-شما/admin`) کلید هوش مصنوعی‌تان را اضافه کنید و گوشی را با QR جفت کنید.
 
-## پنل ادمین
+## اپ و پنل ادمین
 
 <p align="center">
-  <img src="docs/assets/admin-dashboard.jpg" alt="داشبورد پنل ادمین" width="32%">
-  <img src="docs/assets/admin-ai.jpg" alt="هوش مصنوعی و کلیدها" width="32%">
-  <img src="docs/assets/admin-devices.jpg" alt="جفت کردن دستگاه با QR" width="32%">
+  <img src="docs/assets/app-pair.jpg" alt="اپ Loomi روی گوشی" width="27%">
+  &nbsp;
+  <img src="docs/assets/admin-login.png" alt="پنل ادمین" width="68%">
 </p>
+
+مدیریت سرور از SSH هم فقط یک کلمه است:
+
+```bash
+loomi            # منوی مدیریت: وضعیت، لینک پنل، جفت کردن دستگاه، لاگ‌ها، به‌روزرسانی، پشتیبان‌گیری
+```
 
 ## نقشه‌ی راه
 

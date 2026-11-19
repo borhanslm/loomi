@@ -54,7 +54,7 @@ function showGate(mode) {
   $('#gatePass2').required = setup;
   $('#gatePass').autocomplete = setup ? 'new-password' : 'current-password';
   $('#gateBtn').textContent = setup ? 'ذخیره‌ی رمز و ورود' : 'ورود';
-  $('#gateFoot').innerHTML = setup ? '' : 'رمز را فراموش کرده‌اید؟ روی سرور بزنید: <code class="ltr">docker compose exec server node dist/cli.js admin</code>';
+  $('#gateFoot').innerHTML = setup ? '' : 'رمز را فراموش کرده‌اید؟ روی سرور بزنید: <code class="ltr">sudo loomi admin</code>';
   $('#gateErr').textContent = '';
   $('#gatePass').value = $('#gatePass2').value = '';
   $('#gatePass').focus();
@@ -302,7 +302,7 @@ async function log(main) {
     showGate('login');
     $('#gateForm').dataset.mode = 'no-setup';
     $('#gateTitle').textContent = 'پنل ادمین هنوز راه‌اندازی نشده';
-    $('#gateHelp').innerHTML = 'لینک راه‌اندازی در لاگ سرور هست. یا روی سرور بزنید:<br><code class="ltr">docker compose exec server node dist/cli.js admin</code>';
+    $('#gateHelp').innerHTML = 'لینک راه‌اندازی را روی سرور با این فرمان بگیرید:<br><code class="ltr">sudo loomi admin</code>';
     $('#gateForm').hidden = true;
     return;
   }

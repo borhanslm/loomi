@@ -77,13 +77,19 @@ curl -fsSL https://raw.githubusercontent.com/borhanslm/loomi/main/deploy/get.sh 
 
 **3.** In the admin panel (`https://your-domain/admin`), add your AI key and pair your phone with the QR code.
 
-## Admin panel
+## App and admin panel
 
 <p align="center">
-  <img src="docs/assets/admin-dashboard.jpg" alt="Dashboard" width="32%">
-  <img src="docs/assets/admin-ai.jpg" alt="AI providers and keys" width="32%">
-  <img src="docs/assets/admin-devices.jpg" alt="Pair a device with a QR code" width="32%">
+  <img src="docs/assets/app-pair.jpg" alt="Loomi app on a phone" width="27%">
+  &nbsp;
+  <img src="docs/assets/admin-login.png" alt="Admin panel" width="68%">
 </p>
+
+Managing the server over SSH is one word:
+
+```bash
+loomi            # menu: status, admin link, pair a device, logs, update, backup
+```
 
 ## Roadmap
 
