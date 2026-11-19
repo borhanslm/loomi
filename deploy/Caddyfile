@@ -1,0 +1,5 @@
+# Automatic HTTPS (Let's Encrypt) in front of Loomi Server.
+{$LOOMI_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy server:8787
+}

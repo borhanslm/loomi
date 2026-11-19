@@ -1,0 +1,39 @@
+# Loomi Server behind a Cloudflare Tunnel: no static IP, no open ports, HTTPS by Cloudflare.
+#   cd deploy && cp .env.example .env   (set LOOMI_DOMAIN, POSTGRES_PASSWORD, LOOMI_MASTER_KEY, CLOUDFLARE_TUNNEL_TOKEN)
+#   docker compose -f docker-compose.tunnel.yml up -d
+# In the Cloudflare dashboard, the tunnel's public hostname must point to:  http://server:8787
+services:
+  server:
+    build: ../server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://loomi:${POSTGRES_PASSWORD}@db:5432/loomi
+      LOOMI_PUBLIC_URL: https://${LOOMI_DOMAIN}
+    depends_on:
+      db: { condition: service_healthy }
+    expose: ["8787"]
+
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: loomi
+      POSTGRES_DB: loomi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U loomi"]
+      interval: 5s
+      retries: 20
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on: [server]
+
+volumes:
+  db:
