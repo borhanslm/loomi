@@ -84,7 +84,7 @@ if [ -n "$DOMAIN" ]; then URL="https://$DOMAIN"; else URL="http://${PUBIP:-$(hos
 if [ "$MODE" = docker ]; then
   if ! command -v docker >/dev/null; then
     say "نصب Docker"
-    curl -fsSL https://get.docker.com | sh >/tmp/loomi-docker.log 2>&1 || { tail -20 /tmp/loomi-docker.log; die "نصب Docker ناموفق بود."; }
+    curl -fsSL https://get.docker.com | sh < /dev/null >/tmp/loomi-docker.log 2>&1 || { tail -20 /tmp/loomi-docker.log; die "نصب Docker ناموفق بود."; }
   fi
   if [ "$(free -m | awk '/Mem/{print $2}')" -lt 3000 ] && ! swapon --show | grep -q .; then
     fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile >/dev/null && swapon /swapfile && echo '/swapfile none swap sw 0 0' >> /etc/fstab
@@ -92,11 +92,11 @@ if [ "$MODE" = docker ]; then
   say "ساخت و اجرای لومی (چند دقیقه)"
   cd "$DIR/deploy"
   if [ -n "$DOMAIN" ]; then
-    docker compose up -d --build >/tmp/loomi-up.log 2>&1 || { tail -30 /tmp/loomi-up.log; die "اجرا ناموفق بود."; }
+    docker compose up -d --build < /dev/null >/tmp/loomi-up.log 2>&1 || { tail -30 /tmp/loomi-up.log; die "اجرا ناموفق بود."; }
   else
-    LOOMI_PUBLIC_URL="$URL" docker compose -f docker-compose.yml -f docker-compose.ip.yml up -d --build server db >/tmp/loomi-up.log 2>&1 || { tail -30 /tmp/loomi-up.log; die "اجرا ناموفق بود."; }
+    LOOMI_PUBLIC_URL="$URL" docker compose -f docker-compose.yml -f docker-compose.ip.yml up -d --build server db < /dev/null >/tmp/loomi-up.log 2>&1 || { tail -30 /tmp/loomi-up.log; die "اجرا ناموفق بود."; }
   fi
-  run_cli() { docker compose -f "$DIR/deploy/docker-compose.yml" exec -T server node dist/cli.js "$@"; }
+  run_cli() { docker compose -f "$DIR/deploy/docker-compose.yml" exec -T server node dist/cli.js "$@" < /dev/null; }
   echo docker > "$DIR/.mode"
 else
   say "نصب بدون Docker"
@@ -104,7 +104,7 @@ else
   curl -fsSL "https://github.com/$REPO/releases/latest/download/loomi-server.tar.gz" -o "$TMPB/s.tgz" || die "بسته‌ی سرور از GitHub دانلود نشد."
   tar -xzf "$TMPB/s.tgz" -C "$TMPB"
   LOOMI_PUBLIC_URL="$URL" LOOMI_MASTER_KEY="$(grep ^LOOMI_MASTER_KEY= "$ENVF" | cut -d= -f2)" \
-    LOOMI_HOST="$([ -n "$DOMAIN" ] && echo 127.0.0.1 || echo 0.0.0.0)" bash "$TMPB/loomi-server/install.sh"
+    LOOMI_HOST="$([ -n "$DOMAIN" ] && echo 127.0.0.1 || echo 0.0.0.0)" bash "$TMPB/loomi-server/install.sh" < /dev/null
   rm -rf "$TMPB"
   if [ -n "$DOMAIN" ]; then
     if ! command -v caddy >/dev/null; then
@@ -129,7 +129,7 @@ EOF
     printf '%s {\n\tencode zstd gzip\n\treverse_proxy 127.0.0.1:8787\n}\n' "$DOMAIN" > /etc/caddy/Caddyfile
     systemctl daemon-reload && systemctl enable --now caddy >/dev/null 2>&1 && systemctl restart caddy
   fi
-  run_cli() { set -a; . /etc/loomi/loomi.env; set +a; sudo -E -u loomi node /opt/loomi-server/dist/cli.js "$@"; }
+  run_cli() { set -a; . /etc/loomi/loomi.env; set +a; sudo -E -u loomi node /opt/loomi-server/dist/cli.js "$@" < /dev/null; }
   echo native > "$DIR/.mode"
 fi
 
