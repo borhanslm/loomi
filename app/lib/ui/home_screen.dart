@@ -12,6 +12,7 @@ import '../local/session.dart';
 import 'desktop.dart';
 import 'items_ui.dart';
 import 'theme.dart';
+import 'update_banner.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, required this.session});
@@ -127,6 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   StatusPill(online: _live),
                 ]),
               ),
+              Padding(padding: EdgeInsets.symmetric(horizontal: wide ? 24 : 16), child: const UpdateBanner()),
               Expanded(child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: KeyedSubtree(key: ValueKey(_tab), child: pages[_tab]))),
               if (_tab != 2) const CaptureBar(),
             ]),

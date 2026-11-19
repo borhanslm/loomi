@@ -115,8 +115,29 @@ export async function adminPlugin(app: FastifyInstance, deps: AdminDeps) {
     return { ok: true };
   });
 
+  // Latest published Loomi release (checked at most every 6 hours) — for the «new version» notice.
+  let latest: { at: number; version: string | null } = { at: 0, version: null };
+  const latestRelease = async (): Promise<string | null> => {
+    if (Date.now() - latest.at < 6 * 3600_000) return latest.version;
+    latest = { at: Date.now(), version: latest.version };
+    try {
+      const r = await (deps.fetcher ?? fetch)('https://api.github.com/repos/borhanslm/loomi/releases/latest', {
+        headers: { accept: 'application/vnd.github+json', 'user-agent': 'Loomi-Server' }, signal: AbortSignal.timeout(8000),
+      });
+      if (r.ok) latest.version = String(((await r.json()) as { tag_name?: string }).tag_name ?? '').replace(/^v/, '') || null;
+    } catch { /* offline: keep the last answer */ }
+    return latest.version;
+  };
+  const newer = (a: string, b: string) => {
+    const p = (v: string) => v.split('.').map(n => Number(n) || 0);
+    const [x, y] = [p(a), p(b)];
+    for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
+    return false;
+  };
+
   // ── dashboard ──
   app.get('/admin/api/overview', { schema: { hide: true } }, async () => {
+    const latestVersion = await latestRelease();
     let disk: { total: number; free: number } | null = null;
     try {
       const s = await statfs(config.databaseUrl ? '/' : path.resolve(config.dataDir === ':memory:' ? '.' : config.dataDir));
@@ -125,6 +146,8 @@ export async function adminPlugin(app: FastifyInstance, deps: AdminDeps) {
     const n = async (sql: string) => Number((await db.query<{ n: string }>(sql))[0].n);
     return {
       version: deps.version,
+      latestVersion,
+      updateAvailable: !!latestVersion && newer(latestVersion, deps.version),
       publicUrl: config.publicUrl,
       uptimeSec: Math.round((Date.now() - started) / 1000),
       memory: { total: os.totalmem(), free: os.freemem(), process: process.memoryUsage().rss },

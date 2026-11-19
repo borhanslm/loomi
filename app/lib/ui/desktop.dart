@@ -11,6 +11,7 @@ import '../local/items_store.dart';
 import '../local/session.dart';
 import 'items_ui.dart';
 import 'theme.dart';
+import 'update_banner.dart';
 
 /// What the main area shows: Today, Everything, one item type, or Devices.
 class DeskView {
@@ -80,8 +81,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             child: _view == DeskView.devices
                 ? Padding(padding: const EdgeInsets.fromLTRB(24, 18, 24, 0), child: widget.devicesView)
                 : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                    const Padding(padding: EdgeInsets.fromLTRB(32, 14, 32, 0), child: UpdateBanner()),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(32, 22, 32, 14),
+                      padding: const EdgeInsets.fromLTRB(32, 10, 32, 14),
                       child: _Header(view: _view, greeting: widget.greeting, count: _countFor(_view, items)),
                     ),
                     Padding(

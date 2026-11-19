@@ -11,7 +11,8 @@
 set -euo pipefail
 
 REPO="${LOOMI_REPO:-borhanslm/loomi}"
-BRANCH="${LOOMI_BRANCH:-main}"
+# What to install: the latest published release (default), or LOOMI_REF=<tag|branch> (e.g. main for unreleased code).
+REF="${LOOMI_REF:-}"
 DIR=/opt/loomi
 say()  { printf '\n\033[1;35m▶ %s\033[0m\n' "$*"; }
 ok()   { printf '\033[1;32m✔ %s\033[0m\n' "$*"; }
@@ -63,9 +64,14 @@ if [ ! -d "$DIR/.git" ]; then
   git -C "$DIR" init -q
   git -C "$DIR" remote add origin "https://github.com/$REPO.git"
 fi
-git -C "$DIR" fetch -q --depth 1 origin "$BRANCH"
+if [ -z "$REF" ]; then
+  REF="$(curl -fsSL --max-time 15 "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep -m1 '"tag_name"' | cut -d'"' -f4 || true)"
+  [ -n "$REF" ] || REF=main
+fi
+git -C "$DIR" fetch -q --depth 1 origin "$REF"
 git -C "$DIR" reset -q --hard FETCH_HEAD   # keeps untracked files: deploy/.env and data
-ok "نسخه: $(git -C "$DIR" log -1 --format='%h %cs')"
+echo "$REF" > "$DIR/.version"
+ok "نسخه: $REF ($(git -C "$DIR" log -1 --format='%h %cs'))"
 
 # ── secrets (created once, kept on updates) ─────────────────────────────
 ENVF="$DIR/deploy/.env"
@@ -143,9 +149,15 @@ done
 
 install -m 755 "$DIR/deploy/loomi-cli.sh" /usr/local/bin/loomi
 
+# Automatic updates: every night, install a newer release if there is one (turn off: loomi auto-update off).
+if [ "${LOOMI_AUTO_UPDATE:-1}" = 1 ] && [ ! -f "$DIR/.no-auto-update" ]; then
+  /usr/local/bin/loomi auto-update on >/dev/null 2>&1 || true
+fi
+
 echo
 ok "لومی نصب شد: $URL"
 echo "   برای مدیریت سرور هر وقت خواستید بزنید:  loomi"
+[ -f /etc/cron.d/loomi-update ] && echo "   به‌روزرسانی خودکار: روشن (هر شب ساعت ۴ — خاموش کردن: loomi auto-update off)"
 echo
 echo "۱) پنل ادمین — این لینک یک‌بارمصرف را (۳۰ دقیقه) باز کنید و رمز بگذارید:"
 run_cli admin 2>/dev/null | tail -1 || true

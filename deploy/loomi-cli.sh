@@ -48,7 +48,8 @@ cmd_status() {
   local url; url="$(public_url)"
   printf '  %sآدرس%s      %s\n' "$M" "$N" "$url"
   printf '  %sروش نصب%s   %s\n' "$M" "$N" "$([ "$MODE" = docker ] && echo Docker || echo 'بدون Docker')"
-  printf '  %sنسخه%s      %s\n' "$M" "$N" "$(git -C "$DIR" log -1 --format='%h  %cs' 2>/dev/null || echo '?')"
+  printf '  %sنسخه%s      %s  (%s)\n' "$M" "$N" "$(cat "$DIR/.version" 2>/dev/null || echo '?')" "$(git -C "$DIR" log -1 --format='%h  %cs' 2>/dev/null || echo '?')"
+  printf '  %sبه‌روزرسانی خودکار%s  %s\n' "$M" "$N" "$([ -f /etc/cron.d/loomi-update ] && echo 'روشن (هر شب)' || echo 'خاموش')"
   if curl -fsS --max-time 5 "$url/v1/health" >/dev/null 2>&1 || curl -fsS --max-time 3 http://127.0.0.1:8787/v1/health >/dev/null 2>&1; then
     printf '  %sوضعیت%s     %s● سالم%s\n' "$M" "$N" "$G" "$N"
   else
@@ -74,9 +75,32 @@ cmd_restart() {
   if [ "$MODE" = docker ]; then compose restart server >/dev/null; else systemctl restart loomi; fi
   ok "لومی دوباره راه‌اندازی شد."
 }
+latest_release() { curl -fsSL --max-time 15 "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | grep -m1 '"tag_name"' | cut -d'"' -f4; }
 cmd_update() {
   need_root update
-  curl -fsSL "https://raw.githubusercontent.com/$REPO/main/deploy/get.sh" | bash
+  local latest current
+  latest="$(latest_release)"; current="$(cat "$DIR/.version" 2>/dev/null || echo '?')"
+  if [ "${1:-}" = "--if-newer" ]; then
+    [ -n "$latest" ] || { echo "$(date -Is) GitHub در دسترس نیست"; return 0; }
+    if [ "$latest" = "$current" ]; then echo "$(date -Is) به‌روز است ($current)"; return 0; fi
+    echo "$(date -Is) به‌روزرسانی $current → $latest"
+  fi
+  curl -fsSL "https://raw.githubusercontent.com/$REPO/${latest:-main}/deploy/get.sh" | LOOMI_REF="${latest:-main}" bash
+}
+cmd_auto_update() {
+  need_root auto-update
+  case "${1:-status}" in
+    on)
+      printf '%s\n' '# Loomi: install a newer release every night' '17 4 * * * root /usr/local/bin/loomi update --if-newer >> /var/log/loomi-update.log 2>&1' > /etc/cron.d/loomi-update
+      chmod 644 /etc/cron.d/loomi-update; rm -f "$DIR/.no-auto-update"
+      ok "به‌روزرسانی خودکار روشن شد (هر شب ساعت ۴)." ;;
+    off)
+      rm -f /etc/cron.d/loomi-update; touch "$DIR/.no-auto-update"
+      ok "به‌روزرسانی خودکار خاموش شد." ;;
+    *)
+      if [ -f /etc/cron.d/loomi-update ]; then ok "به‌روزرسانی خودکار: روشن (هر شب ساعت ۴)"; else warn "به‌روزرسانی خودکار: خاموش"; fi
+      printf '  نسخه‌ی نصب‌شده: %s   ·   آخرین نسخه: %s\n' "$(cat "$DIR/.version" 2>/dev/null || echo '?')" "$(latest_release || echo '?')" ;;
+  esac
 }
 cmd_backup() {
   need_root backup
@@ -105,6 +129,7 @@ cmd_help() {
   ${B}loomi logs${N}       دیدن لاگ‌ها (خروج: Ctrl+C)
   ${B}loomi restart${N}    راه‌اندازی دوباره
   ${B}loomi update${N}     به‌روزرسانی به آخرین نسخه
+  ${B}loomi auto-update${N} on|off   به‌روزرسانی خودکار شبانه
   ${B}loomi backup${N}     پشتیبان از داده‌ها و کلیدها
 
 EOF
@@ -136,6 +161,6 @@ menu() {
 case "${1:-}" in
   "") menu ;;
   status) cmd_status ;; url) cmd_url ;; admin) cmd_admin ;; pair) cmd_pair ;; logs) cmd_logs ;;
-  restart) cmd_restart ;; update) cmd_update ;; backup) cmd_backup ;; help|-h|--help) cmd_help ;;
+  restart) cmd_restart ;; update) cmd_update "${2:-}" ;; auto-update) cmd_auto_update "${2:-status}" ;; backup) cmd_backup ;; help|-h|--help) cmd_help ;;
   *) fail "فرمان ناشناخته: $1"; cmd_help; exit 2 ;;
 esac

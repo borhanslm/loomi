@@ -76,6 +76,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\loomi.exe"; Description: "Open Loomi now"; Flags: nowait postinstall skipifsilent
+; In-app updates run this installer silently — open Loomi again afterwards.
+Filename: "{app}\loomi.exe"; Flags: nowait; Check: WizardSilent
 
 [Code]
 // Friendly notes that change as the installation progresses.

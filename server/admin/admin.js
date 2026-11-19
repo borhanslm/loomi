@@ -110,6 +110,7 @@ async function dashboard(main) {
   const memUsed = o.memory.total - o.memory.free;
   main.innerHTML = `<div class="fade-in">
     <div class="page-head"><div><h1>${greet()}</h1><p class="muted">نمای کلی سرور لومی شما</p></div><span class="pill ok"><span class="dot"></span>سالم · نسخه‌ی ${esc(o.version)}</span></div>
+    ${o.updateAvailable ? `<div class="banner info"><b>نسخه‌ی تازه‌ی لومی (${esc(o.latestVersion)}) منتشر شده.</b> اگر به‌روزرسانی خودکار روشن باشد، سرور امشب خودش به‌روز می‌شود؛ یا همین حالا روی سرور بزنید: <code class="ltr">sudo loomi update</code></div>` : ''}
     ${o.masterKey ? '' : '<div class="banner warn">LOOMI_MASTER_KEY روی سرور تنظیم نشده؛ تا آن را تنظیم نکنید، کلیدهای API ذخیره نمی‌شوند.</div>'}
     ${o.counts.providers ? '' : '<div class="banner info">هنوز هیچ هوش مصنوعی‌ای وصل نشده. از بخش <a href="#/ai">هوش مصنوعی و کلیدها</a> شروع کنید.</div>'}
     <div class="card hero"><span class="ico"><svg class="i"><use href="#i-globe"/></svg></span>
