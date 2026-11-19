@@ -12,7 +12,28 @@
 
 ## وضعیت
 
-مرحله‌ی ۰ (پایه): سرور، جفت کردن دستگاه با کد یا QR، و اپ اولیه.
+مرحله‌ی ۰ (پایه): سرور، پنل ادمین (کلیدهای هوش مصنوعی، دستگاه‌ها، گزارش کارها)، جفت کردن دستگاه با کد یا QR، و اپ اولیه.
+
+## نصب
+
+**۱. سرور، با یک خط** (روی Ubuntu یا Debian؛ همه‌ی پیش‌نیازها خودکار نصب می‌شوند):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/borhanslm/loomi/main/deploy/get.sh | sudo bash
+```
+
+- اسم دامنه را می‌پرسد. با دامنه، HTTPS خودکار است؛ بدون دامنه، با IP سرور کار می‌کند.
+- آخر کار، لینک پنل ادمین و کد جفت‌سازی را نشان می‌دهد.
+- برای به‌روزرسانی، همین خط را دوباره اجرا کنید؛ داده‌ها و کلیدها می‌مانند.
+- اگر Docker Hub در دسترس نباشد (مثلاً روی سرورهای داخل ایران)، خودکار بدون Docker نصب می‌شود.
+
+**۲. اپ‌ها** از [آخرین نسخه](https://github.com/borhanslm/loomi/releases/latest):
+- **اندروید:** `Loomi.apk`
+- **ویندوز:** `Loomi-Setup.exe`
+
+همه‌چیز داخل خود فایل‌هاست و چیز دیگری لازم نیست.
+
+**۳.** در پنل ادمین (`https://دامنه‌ی-شما/admin`) کلیدهای هوش مصنوعی‌تان را اضافه کنید (Claude، ChatGPT، Gemini، DeepSeek، ElevenLabs، Ollama، یا هر API سازگار با OpenAI)، و از بخش «دستگاه‌ها» گوشی را با QR جفت کنید.
 
 ## ساختار
 
@@ -23,22 +44,15 @@
 | `deploy/` | نصب سرور با Docker و HTTPS خودکار |
 | `docs/` | نقشه‌ی راه و قرارداد API (`openapi.json`) |
 
-## نصب سرور روی سرور ابری خودتان
-
-پیش‌نیاز: یک سرور لینوکسی با Docker و یک دامنه که به آن اشاره کند.
+## فرمان‌های سرور
 
 ```bash
-git clone <این مخزن> loomi && cd loomi/deploy
-cp .env.example .env    # دامنه، رمز پایگاه داده و LOOMI_MASTER_KEY را پر کنید
-docker compose up -d
-docker compose logs server   # QR و کد جفت‌سازی اولین دستگاه این‌جاست
+cd /opt/loomi/deploy
+docker compose exec server node dist/cli.js admin   # لینک تازه برای رمز پنل ادمین (اگر فراموش شد)
+docker compose exec server node dist/cli.js pair    # کد جفت‌سازی تازه
 ```
 
-برای جفت کردن دستگاه بعدی، از داخل اپ «دستگاه تازه» را بزنید، یا روی سرور:
-
-```bash
-docker compose exec server node dist/cli.js pair
-```
+در نصب بدون Docker: `sudo loomi-admin` و `sudo loomi-pair`.
 
 ## توسعه
 
