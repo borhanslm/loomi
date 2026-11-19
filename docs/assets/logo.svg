@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Loomi">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8E7FF0"/>
+      <stop offset="1" stop-color="#5B47C9"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="32" fill="url(#g)"/>
+  <!-- "second brain" spark: an L that opens into a glowing dot -->
+  <path d="M44 34v52h40" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="86" cy="42" r="10" fill="#FFD66B"/>
+  <circle cx="86" cy="42" r="18" fill="none" stroke="#FFD66B" stroke-opacity=".35" stroke-width="4"/>
+</svg>

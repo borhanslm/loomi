@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="Loomi — your second brain. A self-hosted, open-source personal AI assistant.">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B1838"/>
+      <stop offset="1" stop-color="#3B2C8F"/>
+    </linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8E7FF0"/>
+      <stop offset="1" stop-color="#5B47C9"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".8" cy=".2" r=".6">
+      <stop offset="0" stop-color="#8E7FF0" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#8E7FF0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="360" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="360" rx="28" fill="url(#glow)"/>
+  <!-- soft constellation: ideas, tasks, reminders connecting -->
+  <g stroke="#B9AEFF" stroke-opacity=".25" stroke-width="2" fill="none">
+    <path d="M760 90 L880 150 L1010 110 L1100 200 L960 260 L840 230 Z"/>
+    <path d="M880 150 L960 260 M1010 110 L960 260"/>
+  </g>
+  <g fill="#D9D3FF">
+    <circle cx="760" cy="90" r="6"/><circle cx="880" cy="150" r="8"/><circle cx="1010" cy="110" r="6"/>
+    <circle cx="1100" cy="200" r="7"/><circle cx="960" cy="260" r="9" fill="#FFD66B"/><circle cx="840" cy="230" r="5"/>
+  </g>
+  <!-- logo -->
+  <g transform="translate(80 92)">
+    <rect width="176" height="176" rx="44" fill="url(#g)"/>
+    <path d="M60 46v72h56" fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="118" cy="58" r="14" fill="#FFD66B"/>
+    <circle cx="118" cy="58" r="25" fill="none" stroke="#FFD66B" stroke-opacity=".35" stroke-width="5"/>
+  </g>
+  <text x="300" y="168" fill="#FFFFFF" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="84" font-weight="800" letter-spacing="-1">Loomi</text>
+  <text x="304" y="218" fill="#D9D3FF" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="500">Your second brain — a personal AI assistant</text>
+  <text x="304" y="262" fill="#A99EE6" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="22">Self-hosted · Open source · Any AI you choose · Android · Windows</text>
+</svg>

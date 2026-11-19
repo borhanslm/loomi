@@ -1,69 +1,119 @@
+<p align="center">
+  <img src="docs/assets/banner.svg" alt="Loomi — your second brain" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://github.com/borhanslm/loomi/releases/latest"><img alt="آخرین نسخه" src="https://img.shields.io/github/v/release/borhanslm/loomi?label=%D9%86%D8%B3%D8%AE%D9%87&color=6D5BD0"></a>
+  <a href="LICENSE"><img alt="AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-6D5BD0"></a>
+  <img alt="Android" src="https://img.shields.io/badge/Android-✓-3DDC84?logo=android&logoColor=white">
+  <img alt="Windows" src="https://img.shields.io/badge/Windows-✓-0078D6">
+  <img alt="Self-hosted" src="https://img.shields.io/badge/self--hosted-✓-1B1838">
+</p>
+
+<p align="center"><b>فارسی</b> · <a href="README.en.md">English</a></p>
+
 <div dir="rtl">
 
-# لومی (Loomi)
+<h1 align="center">لومی؛ ذهن دوم شما</h1>
 
-**ذهن دوم شما.** لومی یک دستیار هوش مصنوعی شخصی، فارسی‌زبان، رایگان و متن‌باز است. ایده‌ها، کارها، فکرها، یادآورها و خریدهایتان را فقط بگویید. لومی می‌فهمد، مرتب می‌کند، به‌موقع یادتان می‌آورد و کم‌کم خودش انجامشان می‌دهد.
+<p align="center">
+دستیار هوش مصنوعی شخصی، فارسی‌زبان، <b>رایگان و متن‌باز</b>.<br>
+هر چه در ذهنتان می‌گذرد را فقط بگویید؛ لومی می‌فهمد، مرتب می‌کند، به‌موقع یادتان می‌آورد و کم‌کم خودش انجامش می‌دهد.
+</p>
 
-- **مال خود شما:** لومی روی سرور خودتان اجرا می‌شود و داده‌هایتان پیش خودتان می‌ماند.
-- **هر هوش مصنوعی که بخواهید:** برای هر کار، ارائه‌دهنده‌ی دلخواهتان را با کلید API خودتان انتخاب کنید. مثلاً مغز با Claude یا ChatGPT یا Gemini، صدا با ElevenLabs. لومی هیچ چیزی نمی‌فروشد.
-- **گوشی و دسکتاپ:** اپ اندروید و ویندوز، و بعداً iOS و مک.
+<p align="center">
+  <a href="https://github.com/borhanslm/loomi/releases/latest/download/Loomi.apk"><img alt="دانلود برای اندروید" src="https://img.shields.io/badge/%D8%AF%D8%A7%D9%86%D9%84%D9%88%D8%AF-%D8%A7%D9%86%D8%AF%D8%B1%D9%88%DB%8C%D8%AF-3DDC84?style=for-the-badge&logo=android&logoColor=white"></a>
+  <a href="https://github.com/borhanslm/loomi/releases/latest/download/Loomi-Setup.exe"><img alt="دانلود برای ویندوز" src="https://img.shields.io/badge/%D8%AF%D8%A7%D9%86%D9%84%D9%88%D8%AF-%D9%88%DB%8C%D9%86%D8%AF%D9%88%D8%B2-0078D6?style=for-the-badge"></a>
+</p>
 
-نقشه‌ی راه کامل: [docs/ROADMAP.md](docs/ROADMAP.md)
+---
 
-## وضعیت
+## چرا لومی؟
 
-مرحله‌ی ۰ (پایه): سرور، پنل ادمین (کلیدهای هوش مصنوعی، دستگاه‌ها، گزارش کارها)، جفت کردن دستگاه با کد یا QR، و اپ اولیه.
+| | |
+|---|---|
+| 🧠 **ذهن دوم** | ایده‌ها، کارها، یادآورها، خریدها و فکرها؛ همه در یک جا، بدون این‌که خودتان دسته‌بندی کنید. |
+| 🏠 **مال خود شما** | لومی روی سرور خودتان اجرا می‌شود. داده‌ها و کلیدها پیش خودتان می‌ماند، نه پیش یک شرکت. |
+| 🔌 **هر هوش مصنوعی‌ای که بخواهید** | برای هر کار ارائه‌دهنده‌ی دلخواهتان: مغز با Claude، صدا با ElevenLabs، شنیدن با OpenAI… |
+| 🗣️ **فارسی واقعی** | از اول برای فارسی و راست‌به‌چپ ساخته شده. |
+| 🔒 **امن و شفاف** | کلیدها رمزنگاری‌شده، کار حساس فقط با تأیید شما، و گزارش هر کاری که لومی انجام می‌دهد. |
+| 💚 **رایگان و متن‌باز** | هیچ چیزی فروخته نمی‌شود. کد زیر مجوز AGPL-3.0 در دسترس همه است. |
 
-## نصب
+## هوش مصنوعی‌های پشتیبانی‌شده
 
-**۱. سرور، با یک خط** (روی Ubuntu یا Debian؛ همه‌ی پیش‌نیازها خودکار نصب می‌شوند):
+<p>
+<img alt="Claude" src="https://img.shields.io/badge/Claude-Anthropic-D97757">
+<img alt="ChatGPT" src="https://img.shields.io/badge/ChatGPT-OpenAI-111">
+<img alt="Gemini" src="https://img.shields.io/badge/Gemini-Google-4285F4">
+<img alt="DeepSeek" src="https://img.shields.io/badge/DeepSeek-4D6BFE">
+<img alt="ElevenLabs" src="https://img.shields.io/badge/ElevenLabs-voice-000">
+<img alt="ToGPT" src="https://img.shields.io/badge/ToGPT-togpt.ir-6D5BD0">
+<img alt="Ollama" src="https://img.shields.io/badge/Ollama-local-333">
+<img alt="OpenAI-compatible" src="https://img.shields.io/badge/هر%20API%20سازگار%20با%20OpenAI-✓-888">
+</p>
+
+کلید خودتان را در پنل ادمین می‌گذارید و برای هر توانایی (مغز، شنیدن، صدا، حافظه، دیدن عکس) یک مدل اصلی و یک پشتیبان انتخاب می‌کنید.
+
+## نصب در ۳ قدم
+
+**۱. سرور، با یک خط** (Ubuntu یا Debian؛ همه‌ی پیش‌نیازها خودکار نصب می‌شوند):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/borhanslm/loomi/main/deploy/get.sh | sudo bash
 ```
 
-- اسم دامنه را می‌پرسد. با دامنه، HTTPS خودکار است؛ بدون دامنه، با IP سرور کار می‌کند.
+<details>
+<summary>این دستور چه می‌کند؟</summary>
+
+- Docker را نصب می‌کند. اگر Docker Hub در دسترس نباشد (مثل سرورهای داخل ایران)، خودکار بدون Docker نصب می‌کند.
+- اسم دامنه را می‌پرسد و HTTPS را خودکار می‌گیرد. بدون دامنه، با IP سرور کار می‌کند.
+- رمزها و کلید رمزنگاری را می‌سازد.
 - آخر کار، لینک پنل ادمین و کد جفت‌سازی را نشان می‌دهد.
-- برای به‌روزرسانی، همین خط را دوباره اجرا کنید؛ داده‌ها و کلیدها می‌مانند.
-- اگر Docker Hub در دسترس نباشد (مثلاً روی سرورهای داخل ایران)، خودکار بدون Docker نصب می‌شود.
+- برای به‌روزرسانی، همین خط را دوباره اجرا کنید. داده‌ها و کلیدها می‌مانند.
 
-**۲. اپ‌ها** از [آخرین نسخه](https://github.com/borhanslm/loomi/releases/latest):
-- **اندروید:** `Loomi.apk`
-- **ویندوز:** `Loomi-Setup.exe`
+</details>
 
-همه‌چیز داخل خود فایل‌هاست و چیز دیگری لازم نیست.
+**۲. اپ‌ها** را از [آخرین نسخه](https://github.com/borhanslm/loomi/releases/latest) بگیرید. همه‌چیز داخل خود فایل‌هاست:
+- اندروید: [`Loomi.apk`](https://github.com/borhanslm/loomi/releases/latest/download/Loomi.apk)
+- ویندوز: [`Loomi-Setup.exe`](https://github.com/borhanslm/loomi/releases/latest/download/Loomi-Setup.exe)
 
-**۳.** در پنل ادمین (`https://دامنه‌ی-شما/admin`) کلیدهای هوش مصنوعی‌تان را اضافه کنید (Claude، ChatGPT، Gemini، DeepSeek، ElevenLabs، Ollama، یا هر API سازگار با OpenAI)، و از بخش «دستگاه‌ها» گوشی را با QR جفت کنید.
+**۳.** در پنل ادمین (`https://دامنه‌ی-شما/admin`) کلید هوش مصنوعی‌تان را اضافه کنید و گوشی را با QR جفت کنید.
 
-## ساختار
+## پنل ادمین
 
-| پوشه | چیست |
-|---|---|
-| `server/` | Loomi Server (TypeScript، Fastify، PostgreSQL)، مغز همیشه‌روشن |
-| `app/` | اپ Flutter برای گوشی و دسکتاپ |
-| `deploy/` | نصب سرور با Docker و HTTPS خودکار |
-| `docs/` | نقشه‌ی راه و قرارداد API (`openapi.json`) |
+<p align="center">
+  <img src="docs/assets/admin-dashboard.jpg" alt="داشبورد پنل ادمین" width="32%">
+  <img src="docs/assets/admin-ai.jpg" alt="هوش مصنوعی و کلیدها" width="32%">
+  <img src="docs/assets/admin-devices.jpg" alt="جفت کردن دستگاه با QR" width="32%">
+</p>
 
-## فرمان‌های سرور
+## نقشه‌ی راه
+
+- [x] **سرور و پنل ادمین:** نصب یک‌خطی، HTTPS، کلیدهای هوش مصنوعی، جفت کردن دستگاه با QR
+- [x] **اپ اندروید و ویندوز:** اتصال امن به سرور
+- [ ] **گرفتن و فهمیدن:** بگویید یا بنویسید؛ لومی کار و یادآور و خرید و ایده می‌سازد
+- [ ] **یادآوری:** نوتیف به‌موقع، خلاصه‌ی صبح و مرور شب
+- [ ] **صدا:** حرف زدن با لومی، و جواب با صدای دلخواه
+- [ ] **«هی لومی»** حتی با صفحه‌ی خاموش
+- [ ] **اتصال به زندگی:** تقویم، ایمیل، پیامک، پیام‌رسان‌ها
+- [ ] **انجام کار:** پیام، سفارش، کار روی اپ‌ها؛ و بعدها تماس تلفنی
+
+نقشه‌ی کامل: [docs/ROADMAP.md](docs/ROADMAP.md)
+
+## مشارکت
+
+لومی متن‌باز است و از مشارکت شما استقبال می‌کند. برای اجرای محلی:
 
 ```bash
-cd /opt/loomi/deploy
-docker compose exec server node dist/cli.js admin   # لینک تازه برای رمز پنل ادمین (اگر فراموش شد)
-docker compose exec server node dist/cli.js pair    # کد جفت‌سازی تازه
-```
-
-در نصب بدون Docker: `sudo loomi-admin` و `sudo loomi-pair`.
-
-## توسعه
-
-```bash
-cd server && npm install && npm run dev     # سرور با پایگاه داده‌ی داخلی، بدون نیاز به Docker
+cd server && npm install && npm run dev     # سرور با پایگاه داده‌ی داخلی، بدون Docker
 cd server && npm test
 cd app && flutter pub get && flutter test
 ```
 
-## مجوز و کپی‌رایت
+ساختار مخزن: `server/` (TypeScript، Fastify، PostgreSQL)، `app/` (Flutter)، `deploy/` (نصب)، `docs/` (نقشه‌ی راه و [قرارداد API](docs/openapi.json)).
 
-کپی‌رایت © ۲۰۲۶ سازنده‌ی لومی. این نرم‌افزار آزاد است و تحت مجوز **GNU AGPL-3.0** منتشر می‌شود (متن کامل در [LICENSE](LICENSE)). هر کس می‌تواند از آن استفاده کند، تغییرش دهد و منتشرش کند، به شرط این‌که کد خودش هم باز بماند و نام سازنده حفظ شود. نام و نشان «لومی» علامت تجاری است و جدا از کد است.
+## مجوز
+
+کپی‌رایت © ۲۰۲۶ سازنده‌ی لومی. منتشرشده تحت مجوز **[GNU AGPL-3.0](LICENSE)**: هر کس می‌تواند از لومی استفاده کند، آن را تغییر دهد و منتشر کند، به شرط این‌که کد خودش هم باز بماند و نام سازنده حفظ شود. نام و نشان «لومی» علامت تجاری است و جدا از کد است.
 
 </div>
