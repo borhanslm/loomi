@@ -14,7 +14,7 @@ import { parseMasterKey } from './crypto.js';
 import { adminPlugin, adminSetupLink } from './admin/routes.js';
 import type { Fetcher } from './providers.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 export const API_VERSION = 1;
 
 declare module 'fastify' {
