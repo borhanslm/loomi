@@ -78,11 +78,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\loomi.exe"; Description: "Open Loomi now"; Flags: nowait postinstall skipifsilent
 
 [Code]
-// Friendly, rotating notes while files are being copied.
+// Friendly notes that change as the installation progresses.
 var
   Tips: array of String;
-  TipIndex: Integer;
-  LastTick: Cardinal;
 
 procedure InitializeWizard;
 begin
@@ -92,16 +90,13 @@ begin
   Tips[2] := 'Say it once. Loomi turns it into a task, a reminder, or an idea.';
   Tips[3] := 'Sensitive actions always wait for your approval.';
   Tips[4] := 'Loomi is free and open source (AGPL-3.0).';
-  TipIndex := 0;
-  LastTick := 0;
 end;
 
 procedure CurInstallProgressChanged(CurProgress, MaxProgress: Integer);
+var
+  i: Integer;
 begin
-  if (GetTickCount - LastTick > 2500) or (LastTick = 0) then
-  begin
-    WizardForm.StatusLabel.Caption := Tips[TipIndex mod GetArrayLength(Tips)];
-    TipIndex := TipIndex + 1;
-    LastTick := GetTickCount;
-  end;
+  if MaxProgress <= 0 then exit;
+  i := (CurProgress * GetArrayLength(Tips)) div (MaxProgress + 1);
+  WizardForm.StatusLabel.Caption := Tips[i];
 end;
