@@ -47,8 +47,11 @@ fi
 # ── docker or native ────────────────────────────────────────────────────
 MODE="${LOOMI_MODE:-}"
 if [ -z "$MODE" ]; then
+  # Docker Hub answers 401 (needs a token) when reachable; a sanctions block gives 403 or no answer.
+  HUB="$(curl -sS -o /dev/null --max-time 10 -w '%{http_code}' https://registry-1.docker.io/v2/ 2>/dev/null || true)"
   if [ -f "$DIR/.mode" ]; then MODE="$(cat "$DIR/.mode")"
-  elif curl -fsS -o /dev/null --max-time 10 -w '%{http_code}' https://registry-1.docker.io/v2/ 2>/dev/null | grep -qE '^(200|401)$'; then MODE=docker
+  elif command -v docker >/dev/null && [ -n "$(docker ps -q --filter label=com.docker.compose.project=deploy 2>/dev/null)" ]; then MODE=docker
+  elif [ "$HUB" = 401 ] || [ "$HUB" = 200 ]; then MODE=docker
   else MODE=native; fi
 fi
 say "روش نصب: $([ "$MODE" = docker ] && echo 'Docker' || echo 'بدون Docker (Docker Hub در دسترس نیست)')"
@@ -62,7 +65,6 @@ if [ ! -d "$DIR/.git" ]; then
 fi
 git -C "$DIR" fetch -q --depth 1 origin "$BRANCH"
 git -C "$DIR" reset -q --hard FETCH_HEAD   # keeps untracked files: deploy/.env and data
-echo "$MODE" > "$DIR/.mode"
 ok "نسخه: $(git -C "$DIR" log -1 --format='%h %cs')"
 
 # ── secrets (created once, kept on updates) ─────────────────────────────
@@ -95,6 +97,7 @@ if [ "$MODE" = docker ]; then
     LOOMI_PUBLIC_URL="$URL" docker compose -f docker-compose.yml -f docker-compose.ip.yml up -d --build server db >/tmp/loomi-up.log 2>&1 || { tail -30 /tmp/loomi-up.log; die "اجرا ناموفق بود."; }
   fi
   run_cli() { docker compose -f "$DIR/deploy/docker-compose.yml" exec -T server node dist/cli.js "$@"; }
+  echo docker > "$DIR/.mode"
 else
   say "نصب بدون Docker"
   TMPB="$(mktemp -d)"
@@ -126,7 +129,8 @@ EOF
     printf '%s {\n\tencode zstd gzip\n\treverse_proxy 127.0.0.1:8787\n}\n' "$DOMAIN" > /etc/caddy/Caddyfile
     systemctl daemon-reload && systemctl enable --now caddy >/dev/null 2>&1 && systemctl restart caddy
   fi
-  run_cli() { set -a; . /etc/loomi/loomi.env; set +a; sudo -E -u loomi node /opt/loomi/dist/cli.js "$@"; }
+  run_cli() { set -a; . /etc/loomi/loomi.env; set +a; sudo -E -u loomi node /opt/loomi-server/dist/cli.js "$@"; }
+  echo native > "$DIR/.mode"
 fi
 
 # ── done ────────────────────────────────────────────────────────────────

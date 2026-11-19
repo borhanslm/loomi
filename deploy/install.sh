@@ -5,7 +5,7 @@
 set -euo pipefail
 
 PORT="${LOOMI_PORT:-8787}"
-APP=/opt/loomi
+APP=/opt/loomi-server
 DATA=/var/lib/loomi
 ETC=/etc/loomi
 NODE_MIN=20
