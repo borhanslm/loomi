@@ -95,7 +95,7 @@ loomi            # menu: status, admin link, pair a device, logs, update, backup
 
 - [x] **Server and admin panel:** one-line install, HTTPS, AI keys, QR device pairing
 - [x] **Android and Windows apps:** secure connection to your server
-- [ ] **Capture and understand:** say or type anything; Loomi turns it into tasks, reminders, shopping and ideas
+- [x] **Capture and understand:** say or type anything; Loomi turns it into tasks, reminders, shopping and ideas
 - [ ] **Reminders:** timely notifications, a morning brief and an evening review
 - [ ] **Voice:** talk to Loomi and hear it answer in the voice you choose
 - [ ] **"Hey Loomi"**, even with the screen off
