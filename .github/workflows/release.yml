@@ -1,0 +1,105 @@
+name: Release
+# Push a tag like v0.1.0 → builds and publishes:
+#   Loomi.apk            Android app (signed, everything inside)
+#   Loomi-Setup.exe      Windows installer (everything inside, incl. VC++ runtime)
+#   loomi-server.tar.gz  Server bundle for installs without Docker (used by deploy/get.sh)
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: server/package-lock.json }
+      - name: Build bundle
+        working-directory: server
+        run: |
+          npm ci && npm test && npm run build
+          mkdir -p /tmp/b/loomi-server
+          cp -r dist admin package.json package-lock.json ../deploy/install.sh /tmp/b/loomi-server/
+          cd /tmp/b/loomi-server && npm ci --omit=dev --ignore-scripts && rm package-lock.json && find dist -name '*.map' -delete
+          tar -czf "$GITHUB_WORKSPACE/loomi-server.tar.gz" -C /tmp/b loomi-server
+      - uses: actions/upload-artifact@v4
+        with: { name: server, path: loomi-server.tar.gz }
+
+  android:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "::error::ANDROID_KEYSTORE_B64 secret is missing"; exit 1; fi
+          echo "$KEYSTORE_B64" | base64 -d > android/loomi-release.p12
+          printf 'storeFile=loomi-release.p12\nstorePassword=%s\nkeyAlias=loomi\nkeyPassword=%s\nstoreType=pkcs12\n' "$KEYSTORE_PASSWORD" "$KEYSTORE_PASSWORD" > android/key.properties
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build apk --release --build-name="${GITHUB_REF_NAME#v}" --build-number="${{ github.run_number }}"
+      - run: cp build/app/outputs/flutter-apk/app-release.apk "$GITHUB_WORKSPACE/Loomi.apk"
+      - name: Remove signing files
+        if: always()
+        run: rm -f android/loomi-release.p12 android/key.properties
+      - uses: actions/upload-artifact@v4
+        with: { name: android, path: Loomi.apk }
+
+  windows:
+    runs-on: windows-latest
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: flutter pub get
+      - shell: bash
+        run: flutter build windows --release --build-name="${GITHUB_REF_NAME#v}"
+      - name: Bundle the Visual C++ runtime (so users need nothing else)
+        shell: pwsh
+        run: |
+          $rel = "build\windows\x64\runner\Release"
+          foreach ($d in 'msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll') { Copy-Item "$env:WINDIR\System32\$d" $rel -Force }
+      - name: Installer
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) { choco install innosetup -y --no-progress | Out-Null; $env:Path += ";${env:ProgramFiles(x86)}\Inno Setup 6" }
+          $v = "$env:GITHUB_REF_NAME".TrimStart('v'); if (-not $v -or $v -notmatch '^\d') { $v = '0.0.0' }
+          iscc "/DAppVersion=$v" "/DSourceDir=$PWD\build\windows\x64\runner\Release" windows\installer\loomi.iss
+          Copy-Item windows\installer\Output\Loomi-Setup.exe "$env:GITHUB_WORKSPACE\Loomi-Setup.exe"
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: Loomi-Setup.exe }
+
+  publish:
+    needs: [server, android, windows]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { merge-multiple: true }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Loomi.apk
+            Loomi-Setup.exe
+            loomi-server.tar.gz
+          body: |
+            ## لومی ${{ github.ref_name }}
+
+            **سرور (یک خط، روی Ubuntu/Debian):**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/borhanslm/loomi/main/deploy/get.sh | sudo bash
+            ```
+            **اندروید:** فایل `Loomi.apk` را روی گوشی باز کنید و نصب کنید.
+            **ویندوز:** فایل `Loomi-Setup.exe` را اجرا کنید.

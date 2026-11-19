@@ -1,3 +1,11 @@
+import java.util.Properties
+
+// Release signing: CI writes android/key.properties from GitHub secrets; it is never committed.
+val keyProps = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -29,11 +37,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (keyProps.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = rootProject.file(keyProps.getProperty("storeFile"))
+                storePassword = keyProps.getProperty("storePassword")
+                keyAlias = keyProps.getProperty("keyAlias")
+                keyPassword = keyProps.getProperty("keyPassword")
+                storeType = keyProps.getProperty("storeType", "pkcs12")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed with the Loomi release key when present; otherwise the debug key (local builds).
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }
