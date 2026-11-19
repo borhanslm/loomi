@@ -35,7 +35,7 @@ describe('admin setup and login', () => {
   it('serves the panel page with strict security headers', async () => {
     const r = await app.inject({ method: 'GET', url: '/admin/' });
     expect(r.statusCode).toBe(200);
-    expect(r.body).toContain('پنل ادمین لومی');
+    expect(r.body).toContain('Loomi · پنل ادمین');
     expect(r.headers['content-security-policy']).toContain("frame-ancestors 'none'");
   });
 

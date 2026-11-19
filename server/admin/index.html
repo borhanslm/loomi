@@ -4,17 +4,37 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>پنل ادمین لومی</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%236D5BD0'/%3E%3Cpath d='M11 9v14h10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0b0a1c">
+  <title>Loomi · پنل ادمین</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preload" href="fonts/Vazirmatn-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="admin.css">
   <script src="admin.js" defer></script>
 </head>
 <body>
+  <!-- icon sprite (Lucide-style strokes) -->
+  <svg class="sprite" aria-hidden="true">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3c.6 4.2 1.8 5.4 6 6-4.2.6-5.4 1.8-6 6-.6-4.2-1.8-5.4-6-6 4.2-.6 5.4-1.8 6-6z"/><path d="M19 15c.3 1.7.8 2.2 2.5 2.5-1.7.3-2.2.8-2.5 2.5-.3-1.7-.8-2.2-2.5-2.5 1.7-.3 2.2-.8 2.5-2.5z"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18h2"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></symbol>
+    <symbol id="i-out" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/></symbol>
+    <symbol id="i-disk" viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 9.2-9.2M17 6l3 3M14.5 8.5l2 2"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.8 3.5 5.8 3.5 9s-1 6.2-3.5 9c-2.5-2.8-3.5-5.8-3.5-9s1-6.2 3.5-9z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m4 12 16-8-6 16-2.5-6.5z"/></symbol>
+  </svg>
+
   <div id="gate" class="gate" hidden>
-    <div class="gate-card">
-      <div class="logo" aria-hidden="true">L</div>
-      <h1 id="gateTitle">پنل ادمین لومی</h1>
-      <p id="gateHelp" class="muted"></p>
+    <div class="gate-card fade-in">
+      <img class="mark" src="logo.svg" alt="">
+      <span class="wordmark">Loomi</span>
+      <h1 id="gateTitle">پنل ادمین</h1>
+      <p id="gateHelp" class="muted small"></p>
       <form id="gateForm" autocomplete="on">
         <label class="field"><span>رمز</span>
           <input id="gatePass" type="password" autocomplete="current-password" required></label>
@@ -29,14 +49,14 @@
 
   <div id="shell" class="shell" hidden>
     <aside class="side">
-      <div class="brand"><span class="logo" aria-hidden="true">L</span><div><b>لومی</b><span class="muted small">پنل ادمین</span></div></div>
+      <div class="brand"><img class="mark" src="logo.svg" alt=""><div><span class="wordmark">Loomi</span><span class="sub">پنل ادمین</span></div></div>
       <nav aria-label="بخش‌ها">
-        <a href="#/dashboard" data-nav="dashboard">داشبورد</a>
-        <a href="#/ai" data-nav="ai">هوش مصنوعی و کلیدها</a>
-        <a href="#/devices" data-nav="devices">دستگاه‌ها</a>
-        <a href="#/log" data-nav="log">گزارش کارها</a>
+        <a href="#/dashboard" data-nav="dashboard"><svg class="i"><use href="#i-home"/></svg><span>داشبورد</span></a>
+        <a href="#/ai" data-nav="ai"><svg class="i"><use href="#i-spark"/></svg><span>هوش مصنوعی و کلیدها</span></a>
+        <a href="#/devices" data-nav="devices"><svg class="i"><use href="#i-phone"/></svg><span>دستگاه‌ها</span></a>
+        <a href="#/log" data-nav="log"><svg class="i"><use href="#i-list"/></svg><span>گزارش کارها</span></a>
       </nav>
-      <button class="btn ghost" id="logout" type="button">خروج</button>
+      <button class="btn ghost" id="logout" type="button"><svg class="i"><use href="#i-out"/></svg>خروج</button>
     </aside>
     <main id="main" class="main" tabindex="-1"></main>
   </div>

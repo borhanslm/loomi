@@ -74,9 +74,13 @@ jobs:
       - name: Installer
         shell: pwsh
         run: |
-          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) { choco install innosetup -y --no-progress | Out-Null; $env:Path += ";${env:ProgramFiles(x86)}\Inno Setup 6" }
+          # The dark aurora look needs Inno Setup 6.5+; always take the newest.
+          choco upgrade innosetup -y --no-progress | Out-Null
+          $iscc = (Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup*\ISCC.exe", "$env:ProgramFiles\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          Write-Host "Using $iscc"; & $iscc /? | Select-Object -First 1
           $v = "$env:GITHUB_REF_NAME".TrimStart('v'); if (-not $v -or $v -notmatch '^\d') { $v = '0.0.0' }
-          iscc "/DAppVersion=$v" "/DSourceDir=$PWD\build\windows\x64\runner\Release" windows\installer\loomi.iss
+          & $iscc "/DAppVersion=$v" "/DSourceDir=$PWD\build\windows\x64\runner\Release" windows\installer\loomi.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item windows\installer\Output\Loomi-Setup.exe "$env:GITHUB_WORKSPACE\Loomi-Setup.exe"
       - uses: actions/upload-artifact@v4
         with: { name: windows, path: Loomi-Setup.exe }

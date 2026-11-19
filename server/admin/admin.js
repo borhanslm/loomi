@@ -48,7 +48,7 @@ function showGate(mode) {
   $('#shell').hidden = true;
   $('#gate').hidden = false;
   const setup = mode === 'setup';
-  $('#gateTitle').textContent = setup ? 'ساختن رمز پنل ادمین' : 'ورود به پنل ادمین لومی';
+  $('#gateTitle').textContent = setup ? 'ساختن رمز پنل ادمین' : 'ورود به پنل ادمین';
   $('#gateHelp').textContent = setup ? 'این رمز فقط برای مدیر سرور است. یک رمز قوی و جدا انتخاب کنید (دست‌کم ۱۰ نویسه).' : '';
   $('#gatePass2Wrap').hidden = !setup;
   $('#gatePass2').required = setup;
@@ -90,7 +90,7 @@ function route() {
     if (a.dataset.nav === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   const main = $('#main');
-  main.innerHTML = '<p class="muted">در حال بارگذاری…</p>';
+  main.innerHTML = '<p class="muted fade-in">در حال بارگذاری…</p>';
   PAGES[page](main).catch(e => { main.innerHTML = '<div class="banner warn">' + esc(e.message) + '</div>'; });
 }
 window.addEventListener('hashchange', () => { if (!$('#shell').hidden) route(); });
@@ -102,26 +102,29 @@ function enterApp() {
   route();
 }
 
+const ico = (name, cls = '') => `<span class="ico ${cls}"><svg class="i"><use href="#i-${name}"/></svg></span>`;
+const greet = () => { const h = new Date().getHours(); return h < 5 ? 'شب بخیر' : h < 12 ? 'صبح بخیر' : h < 17 ? 'روز بخیر' : h < 21 ? 'عصر بخیر' : 'شب بخیر'; };
+
 async function dashboard(main) {
   const o = await api('/overview');
   const memUsed = o.memory.total - o.memory.free;
-  main.innerHTML = `
-    <div class="page-head"><h1>داشبورد</h1><span class="pill ok">سرور سالم · نسخه‌ی ${esc(o.version)}</span></div>
+  main.innerHTML = `<div class="fade-in">
+    <div class="page-head"><div><h1>${greet()}</h1><p class="muted">نمای کلی سرور لومی شما</p></div><span class="pill ok"><span class="dot"></span>سالم · نسخه‌ی ${esc(o.version)}</span></div>
     ${o.masterKey ? '' : '<div class="banner warn">LOOMI_MASTER_KEY روی سرور تنظیم نشده؛ تا آن را تنظیم نکنید، کلیدهای API ذخیره نمی‌شوند.</div>'}
     ${o.counts.providers ? '' : '<div class="banner info">هنوز هیچ هوش مصنوعی‌ای وصل نشده. از بخش <a href="#/ai">هوش مصنوعی و کلیدها</a> شروع کنید.</div>'}
-    <div class="grid">
-      <div class="card stat"><span class="muted">دستگاه‌های جفت‌شده</span><b>${fa(o.counts.devices)}</b></div>
-      <div class="card stat"><span class="muted">کلیدهای هوش مصنوعی</span><b>${fa(o.counts.providers)}</b></div>
-      <div class="card stat"><span class="muted">کاربران</span><b>${fa(o.counts.users)}</b></div>
-      <div class="card stat"><span class="muted">مدت روشن بودن</span><b>${dur(o.uptimeSec)}</b></div>
-      <div class="card stat"><span class="muted">حافظه (RAM)</span><b>${bytes(memUsed)} از ${bytes(o.memory.total)}</b>
+    <div class="card hero"><span class="ico"><svg class="i"><use href="#i-globe"/></svg></span>
+      <div><h2>آدرس سرور</h2><span class="ltr">${esc(o.publicUrl)}</span><div class="muted small">اپ‌ها با این آدرس و یک کد جفت‌سازی (بخش دستگاه‌ها) وصل می‌شوند.</div></div></div>
+    <div class="grid mt">
+      <div class="card stat">${ico('phone')}<span class="muted">دستگاه‌های جفت‌شده</span><b>${fa(o.counts.devices)}</b></div>
+      <div class="card stat">${ico('key', 'a')}<span class="muted">کلیدهای هوش مصنوعی</span><b>${fa(o.counts.providers)}</b></div>
+      <div class="card stat">${ico('users', 'c')}<span class="muted">کاربران</span><b>${fa(o.counts.users)}</b></div>
+      <div class="card stat">${ico('clock')}<span class="muted">مدت روشن بودن</span><b>${dur(o.uptimeSec)}</b></div>
+      <div class="card stat">${ico('cpu', 'c')}<span class="muted">حافظه (RAM)</span><b>${bytes(memUsed)} <span class="muted small">از ${bytes(o.memory.total)}</span></b>
         <div class="bar"><i class="${pct10(memUsed, o.memory.total)}"></i></div><span class="muted small">لومی: ${bytes(o.memory.process)}</span></div>
-      ${o.disk ? `<div class="card stat"><span class="muted">دیسک</span><b>${bytes(o.disk.total - o.disk.free)} از ${bytes(o.disk.total)}</b>
+      ${o.disk ? `<div class="card stat">${ico('disk', 'a')}<span class="muted">دیسک</span><b>${bytes(o.disk.total - o.disk.free)} <span class="muted small">از ${bytes(o.disk.total)}</span></b>
         <div class="bar"><i class="${pct10(o.disk.total - o.disk.free, o.disk.total)}"></i></div></div>` : ''}
-      <div class="card stat"><span class="muted">بار پردازنده</span><b>${fa(o.load.toFixed(2))}</b><span class="muted small">${fa(o.cpus)} هسته</span></div>
-    </div>
-    <div class="card"><h2>آدرس سرور</h2><p class="ltr">${esc(o.publicUrl)}</p>
-      <p class="muted small">اپ‌های گوشی و دسکتاپ با این آدرس و یک کد جفت‌سازی (بخش دستگاه‌ها) وصل می‌شوند.</p></div>`;
+      <div class="card stat">${ico('cpu')}<span class="muted">بار پردازنده</span><b>${fa(o.load.toFixed(2))}</b><span class="muted small">${fa(o.cpus)} هسته</span></div>
+    </div></div>`;
 }
 
 async function ai(main) {
@@ -134,7 +137,7 @@ async function ai(main) {
     return (k ? k.models : []).map(m => `<option value="${esc(m)}"></option>`).join('');
   };
   main.innerHTML = `
-    <div class="page-head"><h1>هوش مصنوعی و کلیدها</h1></div>
+    <div class="page-head"><div><h1>هوش مصنوعی و کلیدها</h1><p class="muted">مغز و صدای لومی را خودتان انتخاب کنید</p></div></div>
     ${d.masterKey ? '' : '<div class="banner warn">LOOMI_MASTER_KEY روی سرور تنظیم نشده؛ ذخیره‌ی کلید ممکن نیست.</div>'}
     <p class="muted">کلیدهای API خودتان را این‌جا اضافه کنید. کلیدها روی همین سرور رمزنگاری می‌شوند و هیچ‌وقت به گوشی‌ها یا هیچ جای دیگر فرستاده نمی‌شوند؛ فقط ۴ نویسه‌ی آخرشان نمایش داده می‌شود.</p>
 
@@ -163,7 +166,7 @@ async function ai(main) {
       <h2>آزمون مغز لومی</h2>
       <p class="muted small">یک جمله بنویسید تا لومی با هوش مصنوعیِ انتخاب‌شده برای «مغز» جواب بدهد. این آزمون کمی از اعتبار حسابتان مصرف می‌کند.</p>
       <form id="tryForm" class="row"><label class="field"><span>پیام</span><input id="tryPrompt" maxlength="1000" value="سلام لومی، خودت را در یک جمله معرفی کن."></label>
-        <button class="btn primary" id="tryBtn" type="submit">بفرست</button></form>
+        <button class="btn primary" id="tryBtn" type="submit"><svg class="i"><use href="#i-send"/></svg>بفرست</button></form>
       <div id="tryOut"></div>
     </div>
 
@@ -208,7 +211,7 @@ async function ai(main) {
       $('#tryOut').innerHTML = '<p class="muted">لومی دارد فکر می‌کند…</p>';
       try {
         const r = await api('/providers/try', { method: 'POST', body: { prompt: $('#tryPrompt').value } });
-        $('#tryOut').innerHTML = `<div class="banner info"><p dir="auto">${esc(r.text) || '<span class="muted">(جواب خالی)</span>'}</p>
+        $('#tryOut').innerHTML = `<div class="reply fade-in"><p dir="auto">${esc(r.text) || '<span class="muted">(جواب خالی)</span>'}</p>
           <span class="muted small ltr">${esc(r.model)} · ${fa(r.ms)} ms${r.usage ? ' · ' + fa(r.usage.input) + ' → ' + fa(r.usage.output) + ' tokens' : ''}</span>
           ${r.usedFallback ? '<p class="small">مدل اصلی خطا داد و از پشتیبان استفاده شد: ' + esc(r.errors.join('، ')) + '</p>' : ''}</div>`;
       } catch (err) { $('#tryOut').innerHTML = '<div class="banner warn">' + esc(err.message) + '</div>'; }
@@ -242,7 +245,7 @@ async function ai(main) {
 async function devices(main) {
   const list = await api('/devices');
   main.innerHTML = `
-    <div class="page-head"><h1>دستگاه‌ها</h1><button class="btn primary" id="newPair">جفت کردن دستگاه تازه</button></div>
+    <div class="page-head"><div><h1>دستگاه‌ها</h1><p class="muted">گوشی‌ها و کامپیوترهایی که به لومی وصل‌اند</p></div><button class="btn primary" id="newPair"><svg class="i"><use href="#i-plus"/></svg>جفت کردن دستگاه تازه</button></div>
     <div id="pairBox"></div>
     <div class="card table-wrap">
       ${list.length ? `<table><thead><tr><th>دستگاه</th><th>سیستم</th><th>آخرین اتصال</th><th>جفت شده</th><th></th></tr></thead><tbody>

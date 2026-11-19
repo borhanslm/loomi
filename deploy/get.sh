@@ -141,8 +141,11 @@ for i in $(seq 1 60); do
   sleep 3
 done
 
+install -m 755 "$DIR/deploy/loomi-cli.sh" /usr/local/bin/loomi
+
 echo
 ok "لومی نصب شد: $URL"
+echo "   برای مدیریت سرور هر وقت خواستید بزنید:  loomi"
 echo
 echo "۱) پنل ادمین — این لینک یک‌بارمصرف را (۳۰ دقیقه) باز کنید و رمز بگذارید:"
 run_cli admin 2>/dev/null | tail -1 || true

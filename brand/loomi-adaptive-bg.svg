@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2B1D74"/><stop offset=".55" stop-color="#151036"/><stop offset="1" stop-color="#0B0A1C"/></linearGradient>
+    <radialGradient id="aur1" cx=".15" cy=".08" r=".8"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".7"/><stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/></radialGradient>
+    <radialGradient id="aur2" cx=".95" cy=".98" r=".7"><stop offset="0" stop-color="#22D3EE" stop-opacity=".38"/><stop offset="1" stop-color="#22D3EE" stop-opacity="0"/></radialGradient>
+    <linearGradient id="ringA" gradientUnits="userSpaceOnUse" x1="118" y1="172" x2="298" y2="352"><stop offset="0" stop-color="#D8CCFF"/><stop offset="1" stop-color="#7C5CFF"/></linearGradient>
+    <linearGradient id="ringB" gradientUnits="userSpaceOnUse" x1="214" y1="352" x2="394" y2="172"><stop offset="0" stop-color="#22D3EE"/><stop offset="1" stop-color="#E6FCFF"/></linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF0C2"/><stop offset="1" stop-color="#FFB547"/></linearGradient>
+    <radialGradient id="sparkGlow"><stop offset="0" stop-color="#FFC861" stop-opacity=".5"/><stop offset="1" stop-color="#FFC861" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="0" fill="url(#bg)"/><rect width="512" height="512" rx="0" fill="url(#aur1)"/><rect width="512" height="512" rx="0" fill="url(#aur2)"/>
+</svg>

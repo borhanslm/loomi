@@ -42,13 +42,16 @@ void main() {
       overrides: [sessionStoreProvider.overrideWithValue(MemoryStore())],
       child: const LoomiApp(),
     ));
-    await tester.pumpAndSettle();
-    expect(find.text('سلام، من لومی هستم'), findsOneWidget);
-    expect(find.text('اتصال'), findsOneWidget);
+    // The aurora background animates forever, so step time instead of pumpAndSettle.
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Loomi'), findsOneWidget);
+    expect(find.text('ذهن دوم شما'), findsOneWidget);
+    expect(find.text('اتصال'), findsOneWidget); // tests run on desktop → manual entry is shown
     expect(Directionality.of(tester.element(find.text('اتصال'))), TextDirection.rtl);
 
     await tester.tap(find.text('اتصال'));
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('آدرس سرور و کد ۸ رقمی را وارد کنید.'), findsOneWidget);
   });
 }

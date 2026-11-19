@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "app.loomi" "\0"
-            VALUE "FileDescription", "loomi" "\0"
+            VALUE "CompanyName", "Loomi" "\0"
+            VALUE "FileDescription", "Loomi" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "loomi" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 app.loomi. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Loomi. AGPL-3.0" "\0"
             VALUE "OriginalFilename", "loomi.exe" "\0"
-            VALUE "ProductName", "loomi" "\0"
+            VALUE "ProductName", "Loomi" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
