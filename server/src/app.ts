@@ -10,6 +10,9 @@ import type { Db } from './db.js';
 import {
   audit, completePairing, createPairCode, deviceForToken, listDevices, PairError, revokeDevice, type Device,
 } from './devices.js';
+import { parseMasterKey } from './crypto.js';
+import { adminPlugin, adminSetupLink } from './admin/routes.js';
+import type { Fetcher } from './providers.js';
 
 export const VERSION = '0.1.0';
 export const API_VERSION = 1;
@@ -46,7 +49,7 @@ export class Bus {
   emit(userId: number, ev: object) { for (const fn of this.byUser.get(userId) ?? []) fn(ev); }
 }
 
-export async function buildApp(opts: { db: Db; config: Config; logger?: boolean }): Promise<FastifyInstance> {
+export async function buildApp(opts: { db: Db; config: Config; logger?: boolean; fetcher?: Fetcher }): Promise<FastifyInstance> {
   const { db, config } = opts;
   const bus = new Bus();
   // Trust X-Forwarded-For only from a proxy on this machine or the private network (Caddy, nginx),
@@ -62,6 +65,12 @@ export async function buildApp(opts: { db: Db; config: Config; logger?: boolean 
   });
   await app.register(rateLimit, { max: 300, timeWindow: '1 minute' });
   await app.register(websocket);
+  const masterKey = config.masterKey ? parseMasterKey(config.masterKey) : null;
+  await app.register(adminPlugin, {
+    db, config, masterKey, version: VERSION, fetcher: opts.fetcher,
+    pairQr: code => pairQr(config, code),
+    onDevicesChanged: userId => bus.emit(userId, { type: 'devices' }),
+  });
 
   const bearer = (req: FastifyRequest): string => {
     const h = req.headers.authorization ?? '';
@@ -73,7 +82,7 @@ export async function buildApp(opts: { db: Db; config: Config; logger?: boolean 
 
   app.addHook('onRequest', async (req, reply) => {
     const path = req.url.split('?')[0];
-    if (path === '/v1/health' || path === '/v1/pair' || path === '/v1/local/pair-code' || path.startsWith('/documentation')) return;
+    if (!path.startsWith('/v1/') || path === '/v1/health' || path === '/v1/pair' || path.startsWith('/v1/local/')) return;
     const device = await deviceForToken(db, bearer(req));
     if (!device) return reply.code(401).send({ error: 'دستگاه شناخته نشد؛ دوباره جفت کنید.' });
     req.device = device;
@@ -105,11 +114,18 @@ export async function buildApp(opts: { db: Db; config: Config; logger?: boolean 
     return { ...r, qr: pairQr(config, r.code) };
   });
 
-  // For `loomi-pair` / `npm run pair` on the server itself: only from this machine, never via a proxy.
-  app.post('/v1/local/pair-code', { schema: { hide: true } }, async (req, reply) => {
+  // For admin commands on the server itself (`cli.js pair`, `cli.js admin`): only from this machine, never via a proxy.
+  const fromThisMachine = (req: FastifyRequest) => {
     const raw = req.socket.remoteAddress ?? '';
-    const local = raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1';
-    if (!local || req.headers['x-forwarded-for'] || req.headers['forwarded']) return reply.code(403).send({ error: 'فقط از خود سرور.' });
+    return (raw === '127.0.0.1' || raw === '::1' || raw === '::ffff:127.0.0.1') && !req.headers['x-forwarded-for'] && !req.headers['forwarded'];
+  };
+  app.post('/v1/local/admin-setup', { schema: { hide: true } }, async (req, reply) => {
+    if (!fromThisMachine(req)) return reply.code(403).send({ error: 'فقط از خود سرور.' });
+    return { link: await adminSetupLink(db, config) };
+  });
+
+  app.post('/v1/local/pair-code', { schema: { hide: true } }, async (req, reply) => {
+    if (!fromThisMachine(req)) return reply.code(403).send({ error: 'فقط از خود سرور.' });
     const owner = await db.query<{ id: string }>(`SELECT id FROM users WHERE role = 'owner' ORDER BY id LIMIT 1`);
     if (!owner.length) return reply.code(503).send({ error: 'سرور هنوز آماده نیست.' });
     const r = await createPairCode(db, Number(owner[0].id), config.pairMinutes);

@@ -56,6 +56,40 @@ const MIGRATIONS: string[] = [
      detail      JSONB NOT NULL DEFAULT '{}'::jsonb,
      at          TIMESTAMPTZ NOT NULL DEFAULT now()
    );`,
+  // 2: admin panel login + AI providers (server-wide API keys, chosen per capability)
+  `ALTER TABLE users ADD COLUMN password_hash TEXT;
+   CREATE TABLE admin_sessions (
+     id_hash     TEXT PRIMARY KEY,
+     user_id     BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+     expires_at  TIMESTAMPTZ NOT NULL,
+     ip          TEXT
+   );
+   CREATE TABLE admin_setup_tokens (
+     token_hash  TEXT PRIMARY KEY,
+     expires_at  TIMESTAMPTZ NOT NULL,
+     used_at     TIMESTAMPTZ
+   );
+   CREATE TABLE provider_keys (
+     id            TEXT PRIMARY KEY,
+     provider      TEXT NOT NULL,
+     label         TEXT NOT NULL,
+     base_url      TEXT,
+     key_sealed    TEXT,
+     key_last4     TEXT,
+     models        JSONB NOT NULL DEFAULT '[]'::jsonb,
+     last_test_at  TIMESTAMPTZ,
+     last_test_ok  BOOLEAN,
+     last_test_msg TEXT,
+     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+   );
+   CREATE TABLE capability_routes (
+     capability      TEXT PRIMARY KEY,
+     key_id          TEXT REFERENCES provider_keys(id) ON DELETE SET NULL,
+     model           TEXT,
+     fallback_key_id TEXT REFERENCES provider_keys(id) ON DELETE SET NULL,
+     fallback_model  TEXT
+   );`,
 ];
 
 export async function migrate(db: Db): Promise<void> {

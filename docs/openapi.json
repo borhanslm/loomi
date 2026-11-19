@@ -17,6 +17,15 @@
     "schemas": {}
   },
   "paths": {
+    "/admin": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
     "/v1/health": {
       "get": {
         "security": [],

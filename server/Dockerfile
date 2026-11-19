@@ -12,6 +12,7 @@ WORKDIR /app
 ENV NODE_ENV=production LOOMI_PORT=8787 LOOMI_DATA_DIR=/data
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY admin ./admin
 COPY package.json ./
 USER node
 EXPOSE 8787
