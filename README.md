@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/borhanslm/loomi/releases/latest"><img alt="آخرین نسخه" src="https://img.shields.io/github/v/release/borhanslm/loomi?label=%D9%86%D8%B3%D8%AE%D9%87&color=6D5BD0"></a>
+  <a href="https://github.com/borhanslm/loomi/releases/latest"><img alt="آخرین نسخه" src="https://img.shields.io/github/v/release/borhanslm/loomi?color=6D5BD0"></a>
   <a href="LICENSE"><img alt="AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-6D5BD0"></a>
   <img alt="Android" src="https://img.shields.io/badge/Android-✓-3DDC84?logo=android&logoColor=white">
   <img alt="Windows" src="https://img.shields.io/badge/Windows-✓-0078D6">
@@ -22,8 +22,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/borhanslm/loomi/releases/latest/download/Loomi.apk"><img alt="دانلود برای اندروید" src="https://img.shields.io/badge/%D8%AF%D8%A7%D9%86%D9%84%D9%88%D8%AF-%D8%A7%D9%86%D8%AF%D8%B1%D9%88%DB%8C%D8%AF-3DDC84?style=for-the-badge&logo=android&logoColor=white"></a>
-  <a href="https://github.com/borhanslm/loomi/releases/latest/download/Loomi-Setup.exe"><img alt="دانلود برای ویندوز" src="https://img.shields.io/badge/%D8%AF%D8%A7%D9%86%D9%84%D9%88%D8%AF-%D9%88%DB%8C%D9%86%D8%AF%D9%88%D8%B2-0078D6?style=for-the-badge"></a>
+  <a href="https://github.com/borhanslm/loomi/releases/latest/download/Loomi.apk"><img alt="دانلود برای اندروید" src="https://img.shields.io/badge/Download-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white"></a>
+  <a href="https://github.com/borhanslm/loomi/releases/latest/download/Loomi-Setup.exe"><img alt="دانلود برای ویندوز" src="https://img.shields.io/badge/Download-Windows-0078D6?style=for-the-badge"></a>
 </p>
 
 ---
@@ -49,7 +49,7 @@
 <img alt="ElevenLabs" src="https://img.shields.io/badge/ElevenLabs-voice-000">
 <img alt="ToGPT" src="https://img.shields.io/badge/ToGPT-togpt.ir-6D5BD0">
 <img alt="Ollama" src="https://img.shields.io/badge/Ollama-local-333">
-<img alt="OpenAI-compatible" src="https://img.shields.io/badge/هر%20API%20سازگار%20با%20OpenAI-✓-888">
+<img alt="OpenAI-compatible" src="https://img.shields.io/badge/any%20OpenAI--compatible%20API-✓-888">
 </p>
 
 کلید خودتان را در پنل ادمین می‌گذارید و برای هر توانایی (مغز، شنیدن، صدا، حافظه، دیدن عکس) یک مدل اصلی و یک پشتیبان انتخاب می‌کنید.
