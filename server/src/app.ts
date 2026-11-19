@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import swagger from '@fastify/swagger';
 import rateLimit from '@fastify/rate-limit';
 import websocket from '@fastify/websocket';
+import cors from '@fastify/cors';
 import { Type, type Static } from '@sinclair/typebox';
 import type { Config } from './config.js';
 import type { Db } from './db.js';
@@ -67,6 +68,9 @@ export async function buildApp(opts: { db: Db; config: Config; logger?: boolean;
   });
   await app.register(rateLimit, { max: 300, timeWindow: '1 minute' });
   await app.register(websocket);
+  // Development only: let a browser build of the app (e.g. http://localhost:8795) call this server.
+  // Off unless LOOMI_DEV_CORS is set to that exact origin; native apps never need it.
+  if (process.env.LOOMI_DEV_CORS) await app.register(cors, { origin: process.env.LOOMI_DEV_CORS, methods: ['GET', 'POST', 'PATCH', 'DELETE'] });
   const masterKey = config.masterKey ? parseMasterKey(config.masterKey) : null;
   await app.register(adminPlugin, {
     db, config, masterKey, version: VERSION, fetcher: opts.fetcher,

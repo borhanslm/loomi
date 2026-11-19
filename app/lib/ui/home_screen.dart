@@ -1,11 +1,15 @@
-// Home: greeting, connection, what Loomi can do (and what is coming), and this user's devices.
+// Main screen: «امروز» (today) · «همه‌چیز» (everything) · «دستگاه‌ها» (devices), with the capture bar
+// always at hand. Keeps a live connection to the server and syncs items as they change.
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../api/loomi_api.dart';
+import '../fa/dates.dart';
+import '../local/items_store.dart';
 import '../local/session.dart';
+import 'items_ui.dart';
 import 'theme.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -16,9 +20,9 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  List<Device>? _devices;
-  String? _myId, _error;
+  int _tab = 0;
   bool _live = false;
+  int _devicesTick = 0;
   StreamSubscription<Map<String, dynamic>>? _sub;
   Timer? _retry;
 
@@ -27,7 +31,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    Future.microtask(() => ref.read(itemsProvider.notifier).refresh());
     _connectLive();
   }
 
@@ -38,23 +42,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    try {
-      final d = await _api.devices();
-      _myId ??= await _api.myDeviceId();
-      if (mounted) setState(() { _devices = d; _error = null; });
-    } on LoomiApiError catch (e) {
-      if (e.unauthorized) return ref.read(sessionProvider.notifier).signOut(); // this device was revoked
-      if (mounted) setState(() => _error = e.message);
-    }
-  }
-
   void _connectLive() {
     _sub?.cancel();
     _sub = _api.live().listen(
       (ev) {
-        if (ev['type'] == 'hello') setState(() => _live = true);
-        if (ev['type'] == 'devices') _load();
+        switch (ev['type']) {
+          case 'hello':
+            setState(() => _live = true);
+            ref.read(itemsProvider.notifier).refresh(); // also sends anything typed while offline
+          case 'items':
+            ref.read(itemsProvider.notifier).refresh();
+          case 'devices':
+            setState(() => _devicesTick++);
+        }
       },
       onError: (_) => _lost(),
       onDone: _lost,
@@ -65,7 +65,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (!mounted) return;
     setState(() => _live = false);
     _retry?.cancel();
-    _retry = Timer(const Duration(seconds: 5), () { _connectLive(); _load(); });
+    _retry = Timer(const Duration(seconds: 5), _connectLive);
   }
 
   String get _greeting {
@@ -75,6 +75,107 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (h < 17) return 'روز بخیر';
     if (h < 21) return 'عصر بخیر';
     return 'شب بخیر';
+  }
+
+  Widget _todayHeader(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(longDate(DateTime.now()), style: t.bodyMedium?.copyWith(color: Loomi.violetSoft, fontWeight: FontWeight.w600)),
+        Text(_greeting, style: t.headlineMedium),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final wide = MediaQuery.sizeOf(context).width > 760;
+    final pages = [
+      TodayView(header: _todayHeader(context)),
+      const AllView(),
+      DevicesView(session: widget.session, tick: _devicesTick),
+    ];
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 820),
+            child: Column(children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(wide ? 24 : 18, 12, wide ? 24 : 18, 4),
+                child: Row(children: [
+                  const LoomiLogo(size: 36, glow: false),
+                  const SizedBox(width: 10),
+                  Text('Loomi', textDirection: TextDirection.ltr, style: t.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                  const Spacer(),
+                  StatusPill(online: _live),
+                ]),
+              ),
+              Expanded(child: AnimatedSwitcher(duration: const Duration(milliseconds: 220), child: KeyedSubtree(key: ValueKey(_tab), child: pages[_tab]))),
+              if (_tab != 2) const CaptureBar(),
+            ]),
+          ),
+        ),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tab,
+        onDestinationSelected: (i) => setState(() => _tab = i),
+        backgroundColor: Loomi.ink2.withValues(alpha: .92),
+        indicatorColor: Loomi.violet.withValues(alpha: .3),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.wb_sunny_outlined), selectedIcon: Icon(Icons.wb_sunny_rounded), label: 'امروز'),
+          NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2_rounded), label: 'همه‌چیز'),
+          NavigationDestination(icon: Icon(Icons.devices_outlined), selectedIcon: Icon(Icons.devices_rounded), label: 'دستگاه‌ها'),
+        ],
+      ),
+    );
+  }
+}
+
+/// Paired devices: invite another, revoke one, and disconnect this one.
+class DevicesView extends ConsumerStatefulWidget {
+  const DevicesView({super.key, required this.session, required this.tick});
+  final Session session;
+  final int tick;
+  @override
+  ConsumerState<DevicesView> createState() => _DevicesViewState();
+}
+
+class _DevicesViewState extends ConsumerState<DevicesView> {
+  List<Device>? _devices;
+  String? _myId, _error;
+
+  LoomiApi get _api => widget.session.api;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(DevicesView old) {
+    super.didUpdateWidget(old);
+    if (old.tick != widget.tick) _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final d = await _api.devices();
+      _myId ??= await _api.myDeviceId();
+      if (mounted) setState(() { _devices = d; _error = null; });
+    } on LoomiApiError catch (e) {
+      if (e.unauthorized) return _signOut(); // this device was revoked
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  Future<void> _signOut() async {
+    await ref.read(itemsProvider.notifier).clearLocal();
+    await ref.read(sessionProvider.notifier).signOut();
   }
 
   Future<void> _invite() async {
@@ -134,153 +235,57 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final wide = MediaQuery.sizeOf(context).width > 760;
-    return Scaffold(
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          color: Loomi.violet,
-          child: ListView(
-            padding: EdgeInsets.symmetric(horizontal: wide ? 40 : 18, vertical: 16),
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 820),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    // top bar
-                    Row(children: [
-                      const LoomiLogo(size: 40, glow: false),
-                      const SizedBox(width: 10),
-                      Text('Loomi', textDirection: TextDirection.ltr, style: t.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-                      const Spacer(),
-                      StatusPill(online: _live),
-                    ]),
-                    const SizedBox(height: 28),
-                    // greeting
-                    Text(_greeting, style: t.headlineMedium),
-                    const SizedBox(height: 4),
-                    Text('لومی آماده است. به‌زودی هر چیزی که بگویید را این‌جا مرتب می‌کند.', style: t.bodyMedium?.copyWith(color: Loomi.muted)),
-                    const SizedBox(height: 20),
-                    GlassCard(
-                      highlight: true,
-                      child: Row(children: [
-                        Container(
-                          width: 52, height: 52,
-                          decoration: BoxDecoration(gradient: Loomi.gradient, borderRadius: BorderRadius.circular(16)),
-                          child: const Icon(Icons.auto_awesome_rounded, color: Colors.white),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('به سرور خودتان وصل هستید', style: t.titleMedium),
-                          Text(widget.session.url, textDirection: TextDirection.ltr, style: t.bodySmall, overflow: TextOverflow.ellipsis),
-                        ])),
-                      ]),
-                    ),
-                    const SectionTitle('لومی به‌زودی برایتان'),
-                    GridView.count(
-                      crossAxisCount: wide ? 4 : 2,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: wide ? 1.05 : 1.1,
-                      children: const [
-                        _Feature(icon: Icons.edit_note_rounded, title: 'گرفتن و فهمیدن', body: 'بگویید یا بنویسید؛ کار، خرید، ایده', color: Loomi.violet),
-                        _Feature(icon: Icons.notifications_active_rounded, title: 'یادآوری', body: 'سر وقت، حتی با اپ بسته', color: Loomi.amber),
-                        _Feature(icon: Icons.graphic_eq_rounded, title: 'حرف زدن', body: 'با صدای دلخواه شما', color: Loomi.cyan),
-                        _Feature(icon: Icons.bolt_rounded, title: '«هی لومی»', body: 'حتی با صفحه‌ی خاموش', color: Color(0xFFF472B6)),
-                      ],
-                    ),
-                    SectionTitle('دستگاه‌های من',
-                        trailing: TextButton.icon(onPressed: _invite, icon: const Icon(Icons.add_rounded), label: const Text('دستگاه تازه'))),
-                    if (_error != null)
-                      GlassCard(child: Row(children: [
-                        const Icon(Icons.cloud_off_rounded, color: Loomi.danger),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(_error!, style: const TextStyle(color: Loomi.danger))),
-                      ])),
-                    if (_devices == null && _error == null)
-                      const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator(color: Loomi.violet))),
-                    for (final d in _devices ?? <Device>[])
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: GlassCard(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Row(children: [
-                            Container(
-                              width: 44, height: 44,
-                              decoration: BoxDecoration(color: Loomi.glass, borderRadius: BorderRadius.circular(14), border: Border.all(color: Loomi.glassBorder)),
-                              child: Icon(d.platform == 'android' ? Icons.smartphone_rounded : Icons.laptop_windows_rounded, color: Loomi.violetSoft),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Row(children: [
-                                Flexible(child: Text(d.name, style: t.titleMedium, overflow: TextOverflow.ellipsis)),
-                                if (d.id == _myId) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(color: Loomi.cyan.withValues(alpha: .15), borderRadius: BorderRadius.circular(99)),
-                                    child: const Text('همین دستگاه', style: TextStyle(color: Loomi.cyan, fontSize: 12)),
-                                  ),
-                                ],
-                              ]),
-                              Text(d.platform, textDirection: TextDirection.ltr, style: t.bodySmall),
-                            ])),
-                            if (d.id != _myId)
-                              IconButton(tooltip: 'قطع دسترسی', icon: const Icon(Icons.link_off_rounded, color: Loomi.muted), onPressed: () => _revoke(d)),
-                          ]),
-                        ),
-                      ),
-                    const SizedBox(height: 18),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () => ref.read(sessionProvider.notifier).signOut(),
-                        icon: const Icon(Icons.logout_rounded, size: 20),
-                        label: const Text('جدا کردن این دستگاه از سرور'),
-                        style: TextButton.styleFrom(foregroundColor: Loomi.muted),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ]),
-                ),
-              ),
-            ],
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: Loomi.violet,
+      child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
+        Text('دستگاه‌ها', style: t.headlineMedium),
+        const SizedBox(height: 12),
+        GlassCard(
+          highlight: true,
+          child: Row(children: [
+            Container(
+              width: 50, height: 50,
+              decoration: BoxDecoration(gradient: Loomi.gradient, borderRadius: BorderRadius.circular(16)),
+              child: const Icon(Icons.dns_rounded, color: Colors.white),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('سرور لومی شما', style: t.titleMedium),
+              Text(widget.session.url, textDirection: TextDirection.ltr, style: t.bodySmall, overflow: TextOverflow.ellipsis),
+            ])),
+          ]),
+        ),
+        SectionTitle('دستگاه‌های جفت‌شده',
+            trailing: TextButton.icon(onPressed: _invite, icon: const Icon(Icons.add_rounded), label: const Text('دستگاه تازه'))),
+        if (_error != null) Text(_error!, style: const TextStyle(color: Loomi.danger)),
+        if (_devices == null && _error == null) const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator(color: Loomi.violet))),
+        for (final d in _devices ?? <Device>[])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(children: [
+                Icon(d.platform == 'android' ? Icons.smartphone_rounded : Icons.laptop_windows_rounded, color: Loomi.violetSoft),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(d.id == _myId ? '${d.name}  ·  همین دستگاه' : d.name, style: t.titleMedium, overflow: TextOverflow.ellipsis),
+                  Text('آخرین اتصال: ${whenLabel(d.lastSeen.toLocal(), allDay: false)}', style: t.bodySmall),
+                ])),
+                if (d.id != _myId)
+                  IconButton(tooltip: 'قطع دسترسی', icon: const Icon(Icons.link_off_rounded, color: Loomi.muted), onPressed: () => _revoke(d)),
+              ]),
+            ),
+          ),
+        const SizedBox(height: 18),
+        Center(
+          child: TextButton.icon(
+            onPressed: _signOut,
+            icon: const Icon(Icons.logout_rounded, size: 20),
+            label: const Text('جدا کردن این دستگاه از سرور'),
+            style: TextButton.styleFrom(foregroundColor: Loomi.muted),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _Feature extends StatelessWidget {
-  const _Feature({required this.icon, required this.title, required this.body, required this.color});
-  final IconData icon;
-  final String title, body;
-  final Color color;
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            width: 42, height: 42,
-            decoration: BoxDecoration(color: color.withValues(alpha: .16), borderRadius: BorderRadius.circular(13)),
-            child: Icon(icon, color: color),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(border: Border.all(color: Loomi.glassBorder), borderRadius: BorderRadius.circular(99)),
-            child: const Text('به‌زودی', style: TextStyle(fontSize: 11, color: Loomi.muted)),
-          ),
-        ]),
-        const Spacer(),
-        Text(title, style: t.titleMedium),
-        const SizedBox(height: 2),
-        Text(body, style: t.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
       ]),
     );
   }

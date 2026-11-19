@@ -26,6 +26,45 @@ class Device {
   final DateTime lastSeen;
 }
 
+enum ItemType { task, reminder, shopping, idea, note, event }
+
+class Item {
+  Item({
+    required this.id, required this.type, required this.title, this.notes, this.dueAt, this.allDay = false,
+    this.people = const [], this.place, this.done = false, required this.createdAt,
+  });
+  factory Item.fromJson(Map<String, dynamic> j) => Item(
+        id: j['id'] as String,
+        type: ItemType.values.firstWhere((t) => t.name == j['type'], orElse: () => ItemType.note),
+        title: j['title'] as String,
+        notes: j['notes'] as String?,
+        dueAt: j['dueAt'] == null ? null : DateTime.parse(j['dueAt'] as String).toLocal(),
+        allDay: j['allDay'] as bool? ?? false,
+        people: ((j['people'] as List?) ?? const []).map((e) => e.toString()).toList(),
+        place: j['place'] as String?,
+        done: j['done'] as bool? ?? false,
+        createdAt: DateTime.parse(j['createdAt'] as String).toLocal(),
+      );
+  Map<String, dynamic> toJson() => {
+        'id': id, 'type': type.name, 'title': title, 'notes': notes, 'dueAt': dueAt?.toUtc().toIso8601String(), 'allDay': allDay,
+        'people': people, 'place': place, 'done': done, 'createdAt': createdAt.toUtc().toIso8601String(),
+      };
+  final String id, title;
+  final ItemType type;
+  final String? notes, place;
+  final DateTime? dueAt;
+  final bool allDay, done;
+  final List<String> people;
+  final DateTime createdAt;
+}
+
+class CaptureResult {
+  CaptureResult({required this.items, required this.via, this.warning});
+  final List<Item> items;
+  final String via;
+  final String? warning;
+}
+
 /// What the server's pairing QR holds: `{"loomi":1,"url":…,"code":…}`.
 class PairInvite {
   PairInvite(this.url, this.code);
@@ -59,8 +98,8 @@ class LoomiApi {
   final String? token;
   final http.Client _http;
 
-  Map<String, String> get _headers => {
-        'content-type': 'application/json',
+  Map<String, String> _headers(bool json) => {
+        if (json) 'content-type': 'application/json',
         if (token != null) 'authorization': 'Bearer $token',
       };
 
@@ -68,7 +107,7 @@ class LoomiApi {
     final uri = Uri.parse('$baseUrl$path');
     late http.Response r;
     try {
-      final req = http.Request(method, uri)..headers.addAll(_headers);
+      final req = http.Request(method, uri)..headers.addAll(_headers(body != null));
       if (body != null) req.body = jsonEncode(body);
       r = await http.Response.fromStream(await _http.send(req).timeout(const Duration(seconds: 15)));
     } on TimeoutException {
@@ -104,6 +143,29 @@ class LoomiApi {
     final j = await _send('POST', '/v1/pair/codes') as Map<String, dynamic>;
     return (code: j['code'] as String, qr: j['qr'] as String, expiresAt: DateTime.parse(j['expiresAt'] as String));
   }
+
+  /// Say anything; Loomi turns it into items. [clientId] makes retries safe.
+  Future<CaptureResult> capture(String text, {required String clientId}) async {
+    final j = await _send('POST', '/v1/capture', {
+      'text': text, 'clientId': clientId, 'tzOffset': DateTime.now().timeZoneOffset.inMinutes,
+    }) as Map<String, dynamic>;
+    return CaptureResult(
+      items: (j['items'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList(),
+      via: j['via'] as String,
+      warning: j['warning'] as String?,
+    );
+  }
+
+  Future<List<Item>> items({String status = 'all', String? q, ItemType? type}) async {
+    final qs = <String, String>{'status': status, if (q != null && q.trim().isNotEmpty) 'q': q.trim(), if (type != null) 'type': type.name};
+    final list = await _send('GET', '/v1/items?${Uri(queryParameters: qs).query}') as List;
+    return list.map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<Item> updateItem(String id, Map<String, dynamic> patch) async =>
+      Item.fromJson(await _send('PATCH', '/v1/items/$id', patch) as Map<String, dynamic>);
+
+  Future<void> deleteItem(String id) => _send('DELETE', '/v1/items/$id');
 
   /// Live events from the server (device changes now; items, reminders, approvals later).
   Stream<Map<String, dynamic>> live() {
