@@ -16,8 +16,9 @@ import {
   AdminError, completeSetup, createSetupToken, hasAdminPassword, login, logout, MIN_PASSWORD, ownerRow, sessionUser,
 } from './auth.js';
 import {
-  addKey, CAPABILITIES, deleteKey, type Fetcher, listKeys, listRoutes, PROVIDERS, ProviderError, type Route, setRoute, testKey,
+  addKey, CAPABILITIES, deleteKey, endpointFor, type Fetcher, listKeys, listRoutes, PROVIDERS, ProviderError, type Route, setRoute, testKey,
 } from '../providers.js';
+import { AiError, chat } from '../ai/openai-compat.js';
 
 const COOKIE = 'loomi_admin';
 const ADMIN_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../admin');
@@ -201,6 +202,32 @@ export async function adminPlugin(app: FastifyInstance, deps: AdminDeps) {
       await audit(db, 'provider.route_set', { userId: req.adminUser }, { capability: req.body.capability, keyId: req.body.keyId, model: req.body.model });
       return { ok: true, routes: await listRoutes(db) };
     } catch (e) { return fail(reply, e); }
+  });
+
+  // Try the brain with a short prompt (uses a little real credit — only when the admin clicks).
+  app.post<{ Body: { prompt: string } }>('/admin/api/providers/try', {
+    schema: { hide: true, body: { type: 'object', required: ['prompt'], properties: { prompt: { type: 'string', minLength: 1, maxLength: 1000 } } } },
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+  }, async (req, reply) => {
+    const route = (await listRoutes(db)).find(r => r.capability === 'chat');
+    const tries = [[route?.keyId, route?.model], [route?.fallbackKeyId, route?.fallbackModel]].filter(([k, m]) => k && m) as [string, string][];
+    if (!tries.length) return reply.code(400).send({ error: 'اول برای «مغز» یک کلید و مدل انتخاب و ذخیره کنید.' });
+    const errors: string[] = [];
+    for (const [keyId, model] of tries) {
+      const started = Date.now();
+      try {
+        const ep = await endpointFor(db, masterKey, keyId, deps.fetcher);
+        const r = await chat(ep, { model, maxTokens: 300, messages: [
+          { role: 'system', content: 'تو لومی هستی، یک دستیار شخصی فارسی‌زبان. کوتاه و صمیمی جواب بده.' },
+          { role: 'user', content: req.body.prompt },
+        ] });
+        await audit(db, 'provider.tried', { userId: req.adminUser }, { model, usage: r.usage });
+        return { text: r.text, model, usage: r.usage, ms: Date.now() - started, usedFallback: errors.length > 0, errors };
+      } catch (e) {
+        errors.push(`${model}: ${e instanceof AiError || e instanceof ProviderError ? e.message : 'خطای ناشناخته'}`);
+      }
+    }
+    return reply.code(502).send({ error: errors.join(' — ') });
   });
 
   // ── activity log ──

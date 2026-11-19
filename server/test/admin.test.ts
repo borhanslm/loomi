@@ -13,6 +13,7 @@ const H = { 'x-loomi-admin': '1' };
 const fakeFetch = (async (url: string | URL, init?: RequestInit) => {
   const h = (init?.headers ?? {}) as Record<string, string>;
   if (String(url) === 'https://gw.example/v1/models' && h.authorization === 'Bearer or-key-1234') return Response.json({ data: [{ id: 'm-b' }, { id: 'm-a' }] });
+  if (String(url) === 'https://gw.example/v1/chat/completions' && h.authorization === 'Bearer or-key-1234') return Response.json({ error: 'messages required' }, { status: 400 });
   const good = h['x-api-key'] === 'sk-ant-good' || h['xi-api-key'] === 'el-good';
   if (!good) return new Response('{}', { status: 401 });
   if (String(url).includes('anthropic')) return Response.json({ data: [{ id: 'claude-x' }, { id: 'claude-y' }] });

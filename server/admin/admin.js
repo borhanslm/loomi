@@ -160,6 +160,14 @@ async function ai(main) {
     </div>
 
     <div class="card">
+      <h2>آزمون مغز لومی</h2>
+      <p class="muted small">یک جمله بنویسید تا لومی با هوش مصنوعیِ انتخاب‌شده برای «مغز» جواب بدهد. این آزمون کمی از اعتبار حسابتان مصرف می‌کند.</p>
+      <form id="tryForm" class="row"><label class="field"><span>پیام</span><input id="tryPrompt" maxlength="1000" value="سلام لومی، خودت را در یک جمله معرفی کن."></label>
+        <button class="btn primary" id="tryBtn" type="submit">بفرست</button></form>
+      <div id="tryOut"></div>
+    </div>
+
+    <div class="card">
       <h2>هر کار با کدام هوش مصنوعی؟</h2>
       <p class="muted small">برای هر توانایی یک کلید و مدل اصلی، و اگر خواستید یک پشتیبان (وقتی اصلی خطا داد) انتخاب کنید.</p>
       ${d.capabilities.map(c => {
@@ -192,6 +200,18 @@ async function ai(main) {
       $('#akKey').value = '';
       toast(k.lastTestOk ? 'کلید اضافه شد و سالم است.' : 'کلید اضافه شد ولی آزمون ناموفق بود: ' + (k.lastTestMsg || ''), !k.lastTestOk);
       route();
+    });
+  });
+  $('#tryForm').addEventListener('submit', e => {
+    e.preventDefault();
+    busy($('#tryBtn'), async () => {
+      $('#tryOut').innerHTML = '<p class="muted">لومی دارد فکر می‌کند…</p>';
+      try {
+        const r = await api('/providers/try', { method: 'POST', body: { prompt: $('#tryPrompt').value } });
+        $('#tryOut').innerHTML = `<div class="banner info"><p dir="auto">${esc(r.text) || '<span class="muted">(جواب خالی)</span>'}</p>
+          <span class="muted small ltr">${esc(r.model)} · ${fa(r.ms)} ms${r.usage ? ' · ' + fa(r.usage.input) + ' → ' + fa(r.usage.output) + ' tokens' : ''}</span>
+          ${r.usedFallback ? '<p class="small">مدل اصلی خطا داد و از پشتیبان استفاده شد: ' + esc(r.errors.join('، ')) + '</p>' : ''}</div>`;
+      } catch (err) { $('#tryOut').innerHTML = '<div class="banner warn">' + esc(err.message) + '</div>'; }
     });
   });
   main.querySelectorAll('[data-test]').forEach(b => b.addEventListener('click', () => busy(b, async () => {
@@ -256,7 +276,7 @@ async function devices(main) {
 const ACTIONS = {
   'device.paired': 'دستگاه جفت شد', 'device.revoked': 'دسترسی دستگاه قطع شد', 'pair.code': 'کد جفت‌سازی ساخته شد',
   'admin.login': 'ورود ادمین', 'admin.login_failed': 'ورود ناموفق ادمین', 'admin.password_set': 'رمز ادمین تنظیم شد',
-  'provider.key_added': 'کلید هوش مصنوعی اضافه شد', 'provider.key_deleted': 'کلید هوش مصنوعی حذف شد', 'provider.route_set': 'انتخاب هوش مصنوعی تغییر کرد',
+  'provider.key_added': 'کلید هوش مصنوعی اضافه شد', 'provider.key_deleted': 'کلید هوش مصنوعی حذف شد', 'provider.route_set': 'انتخاب هوش مصنوعی تغییر کرد', 'provider.tried': 'آزمون مغز لومی',
 };
 async function log(main) {
   const rows = await api('/audit?limit=200');

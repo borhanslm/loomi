@@ -3,6 +3,7 @@
 // and are never sent back to any client — only their last 4 characters.
 import type { Db } from './db.js';
 import { newId, open, seal } from './crypto.js';
+import { AiError, type Endpoint, verifyKey } from './ai/openai-compat.js';
 
 export type Capability = 'chat' | 'stt' | 'tts' | 'embed' | 'vision';
 export const CAPABILITIES: { id: Capability; label: string }[] = [
@@ -30,6 +31,7 @@ export const PROVIDERS: ProviderInfo[] = [
   { id: 'deepseek', name: 'DeepSeek', needsKey: true, needsUrl: false, caps: ['chat'], keyHelp: 'https://platform.deepseek.com/api_keys' },
   { id: 'elevenlabs', name: 'ElevenLabs', needsKey: true, needsUrl: false, caps: ['tts', 'stt'], keyHelp: 'https://elevenlabs.io/app/settings/api-keys' },
   { id: 'ollama', name: 'Ollama (مدل محلی)', needsKey: false, needsUrl: true, defaultUrl: 'http://localhost:11434', caps: ['chat', 'vision', 'embed'], keyHelp: 'https://ollama.com/download' },
+  { id: 'togpt', name: 'ToGPT (توجی‌پی‌تی)', needsKey: true, needsUrl: false, defaultUrl: 'https://togpt.ir/api/v1', caps: ['chat', 'vision', 'tts', 'stt'], keyHelp: 'https://togpt.ir/api-docs' },
   // Any OpenAI-compatible API: OpenRouter, Groq, Together, Mistral, LM Studio, vLLM, LiteLLM, internal gateways…
   { id: 'custom', name: 'API سفارشی (سازگار با OpenAI)', needsKey: false, needsUrl: true, defaultUrl: 'https://openrouter.ai/api/v1', caps: ['chat', 'vision', 'stt', 'tts', 'embed'], keyHelp: 'https://openrouter.ai/keys' },
 ];
@@ -65,7 +67,7 @@ export async function addKey(db: Db, masterKey: Buffer | null, input: { provider
     if (!masterKey) throw new ProviderError('LOOMI_MASTER_KEY روی سرور تنظیم نشده؛ بدون آن کلیدها امن ذخیره نمی‌شوند.');
     if (apiKey.length > 500 || /\s/.test(apiKey)) throw new ProviderError('کلید API معتبر به نظر نمی‌رسد.');
   }
-  let baseUrl: string | null = null;
+  let baseUrl: string | null = info.defaultUrl && !info.needsUrl ? info.defaultUrl : null;
   if (info.needsUrl) {
     baseUrl = (input.baseUrl || info.defaultUrl || '').trim().replace(/\/+$/, '');
     if (!/^https?:\/\/[^\s]+$/.test(baseUrl)) throw new ProviderError('آدرس سرور مدل معتبر نیست.');
@@ -136,8 +138,11 @@ export async function listModels(f: Fetcher, provider: string, apiKey: string | 
       const j = await getJson(f, `${baseUrl}/api/tags`, {}) as { models?: unknown };
       return ids(j.models, x => x.name);
     }
-    case 'custom': {
+    case 'custom':
+    case 'togpt': {
       const j = await getJson(f, `${baseUrl}/models`, k ? { authorization: `Bearer ${k}` } : {}) as { data?: unknown; models?: unknown };
+      // Some gateways list models publicly, so the list alone does not prove the key works.
+      if (k) await verifyKey({ baseUrl: baseUrl!, apiKey: k, fetch: f });
       return ids(Array.isArray(j.data) ? j.data : j.models, x => x.id ?? x.name).sort();
     }
     default:
@@ -154,7 +159,7 @@ export async function testKey(db: Db, masterKey: Buffer | null, id: string, f: F
     ok = true;
     msg = `سالم — ${models.length.toLocaleString('fa-IR')} مدل/صدا`;
   } catch (e) {
-    msg = e instanceof ProviderError ? e.message : 'خطای ناشناخته در آزمون.';
+    msg = e instanceof ProviderError || e instanceof AiError ? e.message : 'خطای ناشناخته در آزمون.';
   }
   const rows = await db.query<Row>(
     `UPDATE provider_keys SET last_test_at = now(), last_test_ok = $2, last_test_msg = $3, models = CASE WHEN $2 THEN $4::jsonb ELSE models END
@@ -188,4 +193,23 @@ export async function setRoute(db: Db, r: Route): Promise<void> {
     `INSERT INTO capability_routes (capability, key_id, model, fallback_key_id, fallback_model) VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (capability) DO UPDATE SET key_id = $2, model = $3, fallback_key_id = $4, fallback_model = $5`,
     [r.capability, r.keyId, r.model?.trim() || null, r.fallbackKeyId, r.fallbackModel?.trim() || null]);
+}
+
+// ── calling a provider ──
+
+/** OpenAI-compatible base URL for each provider (all of them speak /chat/completions). */
+const COMPAT_BASE: Record<string, string> = {
+  openai: 'https://api.openai.com/v1',
+  deepseek: 'https://api.deepseek.com',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai',
+  anthropic: 'https://api.anthropic.com/v1',
+};
+
+/** Ready-to-call endpoint for a saved key (decrypted only in memory, only on the server). */
+export async function endpointFor(db: Db, masterKey: Buffer | null, keyId: string, f?: Fetcher): Promise<Endpoint & { provider: string }> {
+  const s = await secretFor(db, masterKey, keyId);
+  if (!s) throw new ProviderError('این کلید پیدا نشد.');
+  const base = s.provider === 'ollama' ? `${s.baseUrl}/v1` : COMPAT_BASE[s.provider] ?? s.baseUrl;
+  if (!base) throw new ProviderError('این ارائه‌دهنده برای گفت‌وگو قابل استفاده نیست.');
+  return { provider: s.provider, baseUrl: base, apiKey: s.apiKey, fetch: f };
 }
