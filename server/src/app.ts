@@ -17,7 +17,7 @@ import type { Fetcher } from './providers.js';
 import { ITEM_TYPES, understand } from './brain/capture.js';
 import { deleteItem, ItemError, listItems, saveCapture, updateItem } from './items.js';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 export const API_VERSION = 1;
 
 declare module 'fastify' {
