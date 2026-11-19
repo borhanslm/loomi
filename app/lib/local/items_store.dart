@@ -68,6 +68,12 @@ class ItemsController extends Notifier<ItemsState> {
       await _save();
       await flush();
     } on LoomiApiError catch (e) {
+      if (e.unauthorized) {
+        // this device was removed on the server → back to pairing
+        await clearLocal();
+        await ref.read(sessionProvider.notifier).signOut();
+        return;
+      }
       state = state.copy(error: e.message);
     }
   }

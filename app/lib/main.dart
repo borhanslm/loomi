@@ -5,8 +5,13 @@ import 'local/session.dart';
 import 'ui/home_screen.dart';
 import 'ui/pair_screen.dart';
 import 'ui/theme.dart';
+import 'ui/window_chrome.dart';
 
-void main() => runApp(const ProviderScope(child: LoomiApp()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initWindow();
+  runApp(const ProviderScope(child: LoomiApp()));
+}
 
 class LoomiApp extends StatelessWidget {
   const LoomiApp({super.key});
@@ -20,7 +25,11 @@ class LoomiApp extends StatelessWidget {
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         theme: loomiTheme(),
         themeMode: ThemeMode.dark,
-        builder: (context, child) => AuroraBackground(child: child ?? const SizedBox()),
+        builder: (context, child) => AuroraBackground(
+          child: isDesktopWindow
+              ? Column(children: [const DesktopTitleBar(), Expanded(child: child ?? const SizedBox())])
+              : child ?? const SizedBox(),
+        ),
         home: const Root(),
       );
 }

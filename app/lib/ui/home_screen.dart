@@ -9,6 +9,7 @@ import '../api/loomi_api.dart';
 import '../fa/dates.dart';
 import '../local/items_store.dart';
 import '../local/session.dart';
+import 'desktop.dart';
 import 'items_ui.dart';
 import 'theme.dart';
 
@@ -91,7 +92,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final wide = MediaQuery.sizeOf(context).width > 760;
+    final width = MediaQuery.sizeOf(context).width;
+    // Desktop-sized windows get the desktop layout; narrow windows and phones the phone layout.
+    if (width >= 980) {
+      return Scaffold(
+        body: DesktopShell(
+          session: widget.session,
+          live: _live,
+          greeting: _greeting,
+          devicesView: DevicesView(session: widget.session, tick: _devicesTick),
+        ),
+      );
+    }
+    final wide = width > 760;
     final pages = [
       TodayView(header: _todayHeader(context)),
       const AllView(),

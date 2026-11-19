@@ -19,6 +19,32 @@ import 'theme.dart';
 
 // ── capture ───────────────────────────────────────────────────────────
 
+/// Send a capture and tell the user what Loomi made of it.
+Future<void> submitCapture(BuildContext context, WidgetRef ref, String text) async {
+  final m = ScaffoldMessenger.of(context);
+  // On wide screens keep the notice compact instead of stretching across the window.
+  final width = MediaQuery.sizeOf(context).width >= 900 ? 460.0 : null;
+  final r = await ref.read(itemsProvider.notifier).capture(text);
+  m.hideCurrentSnackBar();
+  String msg;
+  if (r == null) {
+    msg = 'ذخیره شد؛ به سرور که وصل شد، لومی آن را مرتب می‌کند.';
+  } else {
+    final kinds = r.items.map((i) => typeStyle(i.type).label).toSet().join('، ');
+    final note = r.warning != null ? '\n${r.warning}' : '';
+    msg = r.items.isEmpty ? 'چیزی برای ذخیره پیدا نشد.' : '${faDigits(r.items.length)} مورد ساخته شد: $kinds$note';
+  }
+  m.showSnackBar(SnackBar(content: Text(msg), width: width));
+}
+
+/// Example sentences shown when the list is empty — tap to try one.
+const captureExamples = [
+  'فردا ساعت ۱۰ جلسه با علی، قبلش قرارداد رو چاپ کنم',
+  'یه ساعت دیگه یادم بنداز به مامان زنگ بزنم',
+  'شیر و نون و تخم‌مرغ بخرم',
+  'ایده: یه کافه کتاب کنار دانشگاه',
+];
+
 class CaptureBar extends ConsumerStatefulWidget {
   const CaptureBar({super.key});
   @override
@@ -43,19 +69,8 @@ class _CaptureBarState extends ConsumerState<CaptureBar> {
     setState(() => _busy = true);
     HapticFeedback.lightImpact();
     _c.clear();
-    final r = await ref.read(itemsProvider.notifier).capture(text);
-    if (!mounted) return;
-    setState(() => _busy = false);
-    final m = ScaffoldMessenger.of(context);
-    m.hideCurrentSnackBar();
-    if (r == null) {
-      m.showSnackBar(const SnackBar(content: Text('ذخیره شد؛ به سرور که وصل شد، لومی آن را مرتب می‌کند.')));
-    } else {
-      final kinds = r.items.map((i) => typeStyle(i.type).label).toSet().join('، ');
-      m.showSnackBar(SnackBar(content: Text(r.items.isEmpty
-          ? 'چیزی برای ذخیره پیدا نشد.'
-          : '${faDigits(r.items.length)} مورد ساخته شد: $kinds${r.warning != null ? '\n${r.warning}' : ''}')));
-    }
+    await submitCapture(context, ref, text);
+    if (mounted) setState(() => _busy = false);
   }
 
   @override
@@ -103,8 +118,11 @@ class _CaptureBarState extends ConsumerState<CaptureBar> {
 // ── one item ─────────────────────────────────────────────────────────
 
 class ItemTile extends ConsumerWidget {
-  const ItemTile({super.key, required this.item});
+  const ItemTile({super.key, required this.item, this.onOpen, this.selected = false});
   final Item item;
+  /// Desktop opens the side panel; phones (null) open the bottom sheet.
+  final VoidCallback? onOpen;
+  final bool selected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -128,9 +146,11 @@ class ItemTile extends ConsumerWidget {
         },
         child: GlassCard(
           padding: EdgeInsets.zero,
+          highlight: selected,
           child: InkWell(
             borderRadius: BorderRadius.circular(Loomi.radius),
-            onTap: () => showEditSheet(context, item),
+            hoverColor: Colors.white.withValues(alpha: .04),
+            onTap: onOpen ?? () => showEditSheet(context, item),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 14, 8),
               child: Row(children: [
@@ -199,18 +219,38 @@ Future<void> showEditSheet(BuildContext context, Item item) => showModalBottomSh
       isScrollControlled: true,
       backgroundColor: Loomi.ink2,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (_) => _EditSheet(item: item),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 14, 20, 20 + MediaQuery.viewInsetsOf(ctx).bottom),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 44, height: 5, decoration: BoxDecoration(color: Loomi.glassBorder, borderRadius: BorderRadius.circular(9))),
+          const SizedBox(height: 16),
+          ItemEditor(item: item, onClose: () => Navigator.pop(ctx)),
+        ]),
+      ),
     );
 
-class _EditSheet extends ConsumerStatefulWidget {
-  const _EditSheet({required this.item});
+/// Edit one item: title, type, time; or delete it. Used in the phone sheet and the desktop panel.
+class ItemEditor extends ConsumerStatefulWidget {
+  const ItemEditor({super.key, required this.item, required this.onClose});
   final Item item;
+  final VoidCallback onClose;
   @override
-  ConsumerState<_EditSheet> createState() => _EditSheetState();
+  ConsumerState<ItemEditor> createState() => _ItemEditorState();
 }
 
-class _EditSheetState extends ConsumerState<_EditSheet> {
+class _ItemEditorState extends ConsumerState<ItemEditor> {
   late final _title = TextEditingController(text: widget.item.title);
+
+  @override
+  void didUpdateWidget(ItemEditor old) {
+    super.didUpdateWidget(old);
+    if (old.item.id != widget.item.id) {
+      _title.text = widget.item.title;
+      _type = widget.item.type;
+      _due = widget.item.dueAt;
+      _allDay = widget.item.allDay;
+    }
+  }
   late ItemType _type = widget.item.type;
   late DateTime? _due = widget.item.dueAt;
   late bool _allDay = widget.item.allDay;
@@ -242,17 +282,13 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
         dueAt: _due != it.dueAt ? _due : null,
         clearDue: _due == null && it.dueAt != null,
         allDay: _allDay != it.allDay ? _allDay : null);
-    if (mounted) Navigator.pop(context);
+    if (mounted) widget.onClose();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 14, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Center(child: Container(width: 44, height: 5, decoration: BoxDecoration(color: Loomi.glassBorder, borderRadius: BorderRadius.circular(9)))),
-        const SizedBox(height: 16),
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text('ویرایش', style: t.titleLarge),
         const SizedBox(height: 14),
         TextField(controller: _title, decoration: const InputDecoration(labelText: 'عنوان'), maxLength: 200),
@@ -285,25 +321,26 @@ class _EditSheetState extends ConsumerState<_EditSheet> {
         TextButton.icon(
           onPressed: () {
             ref.read(itemsProvider.notifier).remove(widget.item);
-            Navigator.pop(context);
+            widget.onClose();
           },
           icon: const Icon(Icons.delete_outline_rounded),
           label: const Text('حذف'),
           style: TextButton.styleFrom(foregroundColor: Loomi.danger),
         ),
-      ]),
-    );
+      ]);
   }
 }
 
 // ── views ────────────────────────────────────────────────────────────
 
-class _Section extends StatelessWidget {
-  const _Section(this.title, this.items, {this.icon, this.color});
+class ItemSection extends StatelessWidget {
+  const ItemSection(this.title, this.items, {super.key, this.icon, this.color, this.onOpen, this.selectedId});
   final String title;
   final List<Item> items;
   final IconData? icon;
   final Color? color;
+  final void Function(Item)? onOpen;
+  final String? selectedId;
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const SizedBox.shrink();
@@ -317,13 +354,14 @@ class _Section extends StatelessWidget {
           Text(faDigits(items.length), style: const TextStyle(color: Loomi.muted)),
         ]),
       ),
-      for (final i in items) ItemTile(item: i),
+      for (final i in items) ItemTile(item: i, onOpen: onOpen == null ? null : () => onOpen!(i), selected: i.id == selectedId),
     ]);
   }
 }
 
-class _Empty extends StatelessWidget {
-  const _Empty({required this.title, required this.body});
+class EmptyState extends StatelessWidget {
+  const EmptyState({super.key, required this.title, required this.body, this.extra});
+  final Widget? extra;
   final String title, body;
   @override
   Widget build(BuildContext context) => Padding(
@@ -334,12 +372,13 @@ class _Empty extends StatelessWidget {
           Text(title, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
           const SizedBox(height: 6),
           Text(body, style: Theme.of(context).textTheme.bodySmall, textAlign: TextAlign.center),
+          if (extra != null) ...[const SizedBox(height: 18), extra!],
         ]),
       );
 }
 
-class _PendingList extends ConsumerWidget {
-  const _PendingList();
+class PendingList extends ConsumerWidget {
+  const PendingList({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pending = ref.watch(itemsProvider.select((s) => s.pending));
@@ -382,16 +421,16 @@ class TodayView extends ConsumerWidget {
       color: Loomi.violet,
       child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
         header,
-        const _PendingList(),
+        const PendingList(),
         if (s.error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(s.error!, style: const TextStyle(color: Loomi.danger))),
         if (nothing && s.pending.isEmpty)
-          const _Empty(title: 'ذهنت آزاد است', body: 'هر چیزی که باید یادت بماند را پایین بنویس؛\nلومی مرتبش می‌کند.'),
-        _Section('عقب افتاده', overdue, icon: Icons.priority_high_rounded, color: Loomi.danger),
-        _Section('امروز', today, icon: Icons.today_rounded, color: Loomi.cyan),
-        _Section('خرید', shopping, icon: Icons.shopping_bag_outlined, color: Loomi.ok),
-        _Section('کارها', todo, icon: Icons.checklist_rounded),
-        _Section('هفت روز آینده', soon, icon: Icons.date_range_rounded, color: Loomi.violetSoft),
-        _Section('امروز انجام شد', doneToday, icon: Icons.done_all_rounded, color: Loomi.ok),
+          const EmptyState(title: 'ذهنت آزاد است', body: 'هر چیزی که باید یادت بماند را پایین بنویس؛\nلومی مرتبش می‌کند.'),
+        ItemSection('عقب افتاده', overdue, icon: Icons.priority_high_rounded, color: Loomi.danger),
+        ItemSection('امروز', today, icon: Icons.today_rounded, color: Loomi.cyan),
+        ItemSection('خرید', shopping, icon: Icons.shopping_bag_outlined, color: Loomi.ok),
+        ItemSection('کارها', todo, icon: Icons.checklist_rounded),
+        ItemSection('هفت روز آینده', soon, icon: Icons.date_range_rounded, color: Loomi.violetSoft),
+        ItemSection('امروز انجام شد', doneToday, icon: Icons.done_all_rounded, color: Loomi.ok),
       ]),
     );
   }
@@ -450,7 +489,7 @@ class _AllViewState extends ConsumerState<AllView> {
           ]),
         ),
         const SizedBox(height: 14),
-        if (list.isEmpty) const _Empty(title: 'چیزی پیدا نشد', body: 'جست‌وجو یا فیلتر را عوض کنید.'),
+        if (list.isEmpty) const EmptyState(title: 'چیزی پیدا نشد', body: 'جست‌وجو یا فیلتر را عوض کنید.'),
         for (final i in list) ItemTile(item: i),
       ]),
     );
