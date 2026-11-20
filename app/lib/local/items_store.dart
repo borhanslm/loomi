@@ -140,6 +140,13 @@ class ItemsController extends Notifier<ItemsState> {
         'allDay': ?allDay,
       }, (i) => _with(i, title: title, type: type, dueAt: dueAt, clearDue: clearDue, allDay: allDay));
 
+  /// Items the server made elsewhere (e.g. from a voice note) — show them right away.
+  Future<void> absorb(List<Item> fresh) async {
+    if (fresh.isEmpty) return;
+    state = state.copy(items: [...fresh, ...state.items.where((i) => !fresh.any((n) => n.id == i.id))]);
+    await _save();
+  }
+
   /// «Remind me later».
   Future<void> snooze(Item it, [int minutes = snoozeMinutes]) async {
     final before = state.items;

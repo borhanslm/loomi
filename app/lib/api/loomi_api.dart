@@ -1,6 +1,7 @@
 // Thin client for Loomi Server's HTTP + WebSocket API (see docs/openapi.json).
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -68,6 +69,16 @@ class CaptureResult {
   final List<Item> items;
   final String via;
   final String? warning;
+}
+
+class VoiceResult {
+  VoiceResult({required this.text, required this.kind, required this.canSpeak, this.capture, this.answer});
+  final String text;
+  /// 'capture', 'answer' or 'empty' (nothing was heard)
+  final String kind;
+  final bool canSpeak;
+  final CaptureResult? capture;
+  final AskResult? answer;
 }
 
 class AskResult {
@@ -193,6 +204,52 @@ class LoomiApi {
       items: (j['items'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList(),
     );
   }
+
+  /// Raw request (audio in or out). Same errors as JSON calls.
+  Future<http.Response> _raw(String method, String path, {Map<String, String> headers = const {}, List<int>? bytes, Object? json, Duration timeout = const Duration(seconds: 90)}) async {
+    late http.Response r;
+    try {
+      final req = http.Request(method, Uri.parse('$baseUrl$path'))
+        ..headers.addAll(_headers(json != null))
+        ..headers.addAll(headers);
+      if (bytes != null) req.bodyBytes = bytes;
+      if (json != null) req.body = jsonEncode(json);
+      r = await http.Response.fromStream(await _http.send(req).timeout(timeout));
+    } on TimeoutException {
+      throw LoomiApiError('سرور لومی جواب نداد. اینترنت را بررسی کنید.');
+    } catch (_) {
+      throw LoomiApiError('به سرور لومی وصل نشد.');
+    }
+    if (r.statusCode >= 400) {
+      String msg = 'خطای سرور (${r.statusCode})';
+      try {
+        final d = jsonDecode(utf8.decode(r.bodyBytes));
+        if (d is Map && d['error'] is String) msg = d['error'] as String;
+      } catch (_) {}
+      throw LoomiApiError(msg, r.statusCode);
+    }
+    return r;
+  }
+
+  /// Send a recording; Loomi hears it, then saves it or answers it.
+  /// [mode]: 'auto' (a question gets an answer), 'capture' or 'ask'.
+  Future<VoiceResult> voice(Uint8List audio, {String mime = 'audio/wav', String mode = 'auto', String? clientId}) async {
+    final qs = Uri(queryParameters: {'mode': mode, 'tzOffset': '${DateTime.now().timeZoneOffset.inMinutes}', 'clientId': ?clientId}).query;
+    final r = await _raw('POST', '/v1/voice?$qs', headers: {'content-type': mime}, bytes: audio);
+    final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
+    final c = j['capture'] as Map<String, dynamic>?, a = j['answer'] as Map<String, dynamic>?;
+    List<Item> items(Map<String, dynamic> m) => (m['items'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList();
+    return VoiceResult(
+      text: j['text'] as String,
+      kind: j['kind'] as String,
+      canSpeak: j['canSpeak'] as bool? ?? false,
+      capture: c == null ? null : CaptureResult(items: items(c), via: c['via'] as String, warning: c['warning'] as String?),
+      answer: a == null ? null : AskResult(answer: a['answer'] as String, via: a['via'] as String, warning: a['warning'] as String?, items: items(a)),
+    );
+  }
+
+  /// Loomi's voice: text → mp3 bytes.
+  Future<Uint8List> speak(String text) async => (await _raw('POST', '/v1/speak', json: {'text': text})).bodyBytes;
 
   /// Live events from the server (device changes now; items, reminders, approvals later).
   Stream<Map<String, dynamic>> live() {

@@ -1337,6 +1337,521 @@
           }
         }
       }
+    },
+    "/v1/voice": {
+      "post": {
+        "description": "Send a recording (body: audio/wav, audio/mp4, audio/mpeg, audio/webm…). Loomi transcribes it, then saves it — or answers it when it is a question.",
+        "parameters": [
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "auto"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "capture"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "ask"
+                  ]
+                }
+              ]
+            },
+            "in": "query",
+            "name": "mode",
+            "required": false
+          },
+          {
+            "schema": {
+              "minimum": -720,
+              "maximum": 840,
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "tzOffset",
+            "required": false
+          },
+          {
+            "schema": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "in": "query",
+            "name": "clientId",
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "text",
+                    "kind",
+                    "capture",
+                    "answer",
+                    "sttModel",
+                    "canSpeak"
+                  ],
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "capture"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "answer"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "empty"
+                          ]
+                        }
+                      ]
+                    },
+                    "capture": {
+                      "type": "object",
+                      "required": [
+                        "captureId",
+                        "via",
+                        "model",
+                        "warning",
+                        "duplicate",
+                        "items"
+                      ],
+                      "properties": {
+                        "captureId": {
+                          "type": "string"
+                        },
+                        "via": {
+                          "type": "string"
+                        },
+                        "model": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "warning": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "duplicate": {
+                          "type": "boolean"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "type",
+                              "title",
+                              "notes",
+                              "dueAt",
+                              "allDay",
+                              "people",
+                              "place",
+                              "done",
+                              "doneAt",
+                              "createdAt",
+                              "updatedAt",
+                              "captureId",
+                              "remindAt"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "task"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "reminder"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "shopping"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "idea"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "note"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "event"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "dueAt": {
+                                "format": "date-time",
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "allDay": {
+                                "type": "boolean"
+                              },
+                              "people": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "place": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "done": {
+                                "type": "boolean"
+                              },
+                              "doneAt": {
+                                "format": "date-time",
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "captureId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "remindAt": {
+                                "format": "date-time",
+                                "type": "string",
+                                "nullable": true
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "nullable": true
+                    },
+                    "answer": {
+                      "type": "object",
+                      "required": [
+                        "answer",
+                        "via",
+                        "model",
+                        "warning",
+                        "items"
+                      ],
+                      "properties": {
+                        "answer": {
+                          "type": "string"
+                        },
+                        "via": {
+                          "type": "string"
+                        },
+                        "model": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "warning": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "required": [
+                              "id",
+                              "type",
+                              "title",
+                              "notes",
+                              "dueAt",
+                              "allDay",
+                              "people",
+                              "place",
+                              "done",
+                              "doneAt",
+                              "createdAt",
+                              "updatedAt",
+                              "captureId",
+                              "remindAt"
+                            ],
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "task"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "reminder"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "shopping"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "idea"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "note"
+                                    ]
+                                  },
+                                  {
+                                    "type": "string",
+                                    "enum": [
+                                      "event"
+                                    ]
+                                  }
+                                ]
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "notes": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "dueAt": {
+                                "format": "date-time",
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "allDay": {
+                                "type": "boolean"
+                              },
+                              "people": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "place": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "done": {
+                                "type": "boolean"
+                              },
+                              "doneAt": {
+                                "format": "date-time",
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "createdAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "updatedAt": {
+                                "format": "date-time",
+                                "type": "string"
+                              },
+                              "captureId": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "remindAt": {
+                                "format": "date-time",
+                                "type": "string",
+                                "nullable": true
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "nullable": true
+                    },
+                    "sttModel": {
+                      "type": "string"
+                    },
+                    "canSpeak": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/speak": {
+      "post": {
+        "description": "Loomi says it: text → mp3, with the voice chosen in the admin panel.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "text"
+                ],
+                "properties": {
+                  "text": {
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "409": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "error"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "security": [

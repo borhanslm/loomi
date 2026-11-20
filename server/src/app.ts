@@ -17,6 +17,8 @@ import type { Fetcher } from './providers.js';
 import { ITEM_TYPES, understand } from './brain/capture.js';
 import { deleteItem, ItemError, listItems, saveCapture, snoozeItem, takeDueReminders, updateItem } from './items.js';
 import { ask } from './brain/ask.js';
+import { canSpeak, hear, NoVoiceError, soundsLikeQuestion, speak } from './voice.js';
+import { AiError } from './ai/openai-compat.js';
 
 export const VERSION = '0.6.0';
 export const API_VERSION = 1;
@@ -169,6 +171,14 @@ export async function buildApp(opts: {
     createdAt: Type.String({ format: 'date-time' }), updatedAt: Type.String({ format: 'date-time' }), captureId: Type.Union([Type.String(), Type.Null()]),
     remindAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
   });
+  const CaptureResultT = Type.Object({
+    captureId: Type.String(), via: Type.String(), model: Type.Union([Type.String(), Type.Null()]),
+    warning: Type.Union([Type.String(), Type.Null()]), duplicate: Type.Boolean(), items: Type.Array(ItemT),
+  });
+  const AnswerT = Type.Object({
+    answer: Type.String(), via: Type.String(), model: Type.Union([Type.String(), Type.Null()]),
+    warning: Type.Union([Type.String(), Type.Null()]), items: Type.Array(ItemT),
+  });
   const CaptureBodyT = Type.Object({
     text: Type.String({ minLength: 1, maxLength: 4000 }),
     clientId: Type.Optional(Type.String({ maxLength: 64 })),
@@ -180,19 +190,16 @@ export async function buildApp(opts: {
     config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
     schema: {
       body: CaptureBodyT,
-      response: { 200: Type.Object({
-        captureId: Type.String(), via: Type.String(), model: Type.Union([Type.String(), Type.Null()]),
-        warning: Type.Union([Type.String(), Type.Null()]), duplicate: Type.Boolean(), items: Type.Array(ItemT),
-      }) },
+      response: { 200: CaptureResultT },
     },
-  }, async req => {
-    const d = req.device!;
-    const offset = req.body.tzOffset ?? 210;
-    const u = await understand(req.body.text, new Date(), offset, { db, masterKey, fetcher: opts.fetcher });
-    const r = await saveCapture(db, d.userId, d.id, req.body.text, req.body.clientId ?? null, u);
+  }, async req => doCapture(req.device!, req.body.text, req.body.clientId ?? null, req.body.tzOffset ?? 210));
+
+  async function doCapture(d: Device, text: string, clientId: string | null, offset: number) {
+    const u = await understand(text, new Date(), offset, { db, masterKey, fetcher: opts.fetcher });
+    const r = await saveCapture(db, d.userId, d.id, text, clientId, u);
     if (!r.duplicate) bus.emit(d.userId, { type: 'items' });
     return { captureId: r.captureId, via: u.via, model: u.model, warning: u.warning, duplicate: r.duplicate, items: r.items };
-  });
+  }
 
   app.get<{ Querystring: { status?: 'open' | 'done' | 'all'; type?: string; q?: string; limit?: number } }>('/v1/items', {
     schema: {
@@ -251,12 +258,76 @@ export async function buildApp(opts: {
     config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     schema: {
       body: AskBodyT,
-      response: { 200: Type.Object({
-        answer: Type.String(), via: Type.String(), model: Type.Union([Type.String(), Type.Null()]),
-        warning: Type.Union([Type.String(), Type.Null()]), items: Type.Array(ItemT),
-      }) },
+      response: { 200: AnswerT },
     },
   }, async req => ask(db, req.device!.userId, req.body.question, new Date(), req.body.tzOffset ?? 210, { db, masterKey, fetcher: opts.fetcher }));
+
+  // ── voice ──
+  // A recording arrives as the raw request body (audio/wav, audio/mp4, …), up to ~20 MB (a few minutes).
+  app.addContentTypeParser(/^audio\//, { parseAs: 'buffer', bodyLimit: 20_000_000 }, (_req, body, done) => done(null, body));
+  const voiceDeps = { db, masterKey, fetcher: opts.fetcher };
+  const VoiceQueryT = Type.Object({
+    mode: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('capture'), Type.Literal('ask')])),
+    tzOffset: Type.Optional(Type.Integer({ minimum: -720, maximum: 840 })),
+    clientId: Type.Optional(Type.String({ maxLength: 64 })),
+  });
+  app.post<{ Querystring: Static<typeof VoiceQueryT>; Body: Buffer }>('/v1/voice', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: {
+      description: 'Send a recording (body: audio/wav, audio/mp4, audio/mpeg, audio/webm…). Loomi transcribes it, then saves it — or answers it when it is a question.',
+      querystring: VoiceQueryT,
+      response: {
+        200: Type.Object({
+          text: Type.String(), kind: Type.Union([Type.Literal('capture'), Type.Literal('answer'), Type.Literal('empty')]),
+          capture: Type.Union([CaptureResultT, Type.Null()]), answer: Type.Union([AnswerT, Type.Null()]),
+          sttModel: Type.String(), canSpeak: Type.Boolean(),
+        }),
+        400: ErrorT, 409: ErrorT, 502: ErrorT,
+      },
+    },
+  }, async (req, reply) => {
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.length < 200) return reply.code(400).send({ error: 'صدایی ضبط نشد.' });
+    const mime = String(req.headers['content-type'] ?? 'audio/wav').split(';')[0];
+    const ext = ({ 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/aac': 'm4a', 'audio/mpeg': 'mp3', 'audio/webm': 'webm', 'audio/ogg': 'ogg' } as Record<string, string>)[mime] ?? 'wav';
+    let heard: { text: string; model: string };
+    try {
+      heard = await hear(voiceDeps, body, `voice.${ext}`, mime);
+    } catch (e) {
+      if (e instanceof NoVoiceError) return reply.code(409).send({ error: e.message });
+      if (e instanceof AiError) return reply.code(502).send({ error: e.message });
+      throw e;
+    }
+    const offset = req.query.tzOffset ?? 210;
+    const speakable = await canSpeak(db);
+    const text = heard.text;
+    if (!text) return { text, kind: 'empty' as const, capture: null, answer: null, sttModel: heard.model, canSpeak: speakable };
+    const mode = req.query.mode ?? 'auto';
+    if (mode === 'ask' || (mode === 'auto' && soundsLikeQuestion(text))) {
+      const a = await ask(db, req.device!.userId, text, new Date(), offset, voiceDeps);
+      return { text, kind: 'answer' as const, capture: null, answer: a, sttModel: heard.model, canSpeak: speakable };
+    }
+    const c = await doCapture(req.device!, text, req.query.clientId ?? null, offset);
+    return { text, kind: 'capture' as const, capture: c, answer: null, sttModel: heard.model, canSpeak: speakable };
+  });
+
+  app.post<{ Body: { text: string } }>('/v1/speak', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: {
+      description: 'Loomi says it: text → mp3, with the voice chosen in the admin panel.',
+      body: Type.Object({ text: Type.String({ minLength: 1, maxLength: 2000 }) }),
+      response: { 409: ErrorT, 502: ErrorT },
+    },
+  }, async (req, reply) => {
+    try {
+      const r = await speak(voiceDeps, req.body.text);
+      return reply.header('content-type', r.contentType).header('cache-control', 'no-store').send(r.audio);
+    } catch (e) {
+      if (e instanceof NoVoiceError) return reply.code(409).send({ error: e.message });
+      if (e instanceof AiError) return reply.code(502).send({ error: e.message });
+      throw e;
+    }
+  });
 
   // Reminder scheduler: sends {type:'reminder'} to the user's connected apps when an item is due.
   // Apps also schedule reminders on the device, so one arrives even when the app is closed.

@@ -1,6 +1,6 @@
 // Desktop layout (wide windows): sidebar navigation with counts (type lists are filter chips in Everything), the capture box at
 // the top of the page (Ctrl+K), Today in two columns, and item details in a side panel.
-// Keyboard: Ctrl+K / Ctrl+N capture · Ctrl+1 Today · Ctrl+2 Everything · Ctrl+3 Devices · Esc closes the panel.
+// Keyboard: Ctrl+K / Ctrl+N capture · Ctrl+M voice · Ctrl+1 Today · Ctrl+2 Everything · Ctrl+3 Devices · Esc closes the panel.
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -12,6 +12,7 @@ import '../local/session.dart';
 import 'items_ui.dart';
 import 'theme.dart';
 import 'update_banner.dart';
+import 'voice_ui.dart';
 
 /// What the main area shows: Today, Everything, one item type, or Devices.
 class DeskView {
@@ -71,6 +72,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         const SingleActivator(LogicalKeyboardKey.digit1, control: true): () => _go(DeskView.today),
         const SingleActivator(LogicalKeyboardKey.digit2, control: true): () => _go(DeskView.all),
         const SingleActivator(LogicalKeyboardKey.digit3, control: true): () => _go(DeskView.devices),
+        const SingleActivator(LogicalKeyboardKey.keyM, control: true): () => showVoice(context),
         const SingleActivator(LogicalKeyboardKey.escape): () => setState(() => _selectedId = null),
       },
       child: Focus(
@@ -322,6 +324,8 @@ class _ComposerState extends ConsumerState<_Composer> {
               ),
             ),
             if (!_busy) ...[const _Kbd('Enter'), const SizedBox(width: 10)],
+            const MicButton(size: 44),
+            const SizedBox(width: 10),
             Tooltip(
               message: 'ثبت (Enter) · خط تازه: Shift+Enter',
               child: InkWell(

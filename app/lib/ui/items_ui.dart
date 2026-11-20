@@ -9,6 +9,7 @@ import '../local/items_store.dart';
 import '../local/session.dart';
 import 'jalali_picker.dart';
 import 'theme.dart';
+import 'voice_ui.dart';
 
 ({IconData icon, Color color, String label}) typeStyle(ItemType t) => switch (t) {
       ItemType.task => (icon: Icons.check_circle_outline_rounded, color: Loomi.violetSoft, label: 'کار'),
@@ -178,6 +179,8 @@ class _CaptureBarState extends ConsumerState<CaptureBar> {
               ),
             ),
             const SizedBox(width: 6),
+            const MicButton(size: 46),
+            const SizedBox(width: 8),
             Semantics(
               button: true,
               label: 'ثبت',
