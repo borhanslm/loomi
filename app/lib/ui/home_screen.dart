@@ -1,4 +1,4 @@
-// Main screen: «امروز» (today) · «همه‌چیز» (everything) · «دستگاه‌ها» (devices), with the capture bar
+// Main screen: «امروز» (today) · «همه‌چیز» (everything) · «تنظیمات» (reminders + devices), with the capture bar
 // always at hand. Keeps a live connection to the server and syncs items as they change.
 import 'dart:async';
 
@@ -8,9 +8,11 @@ import 'package:material_ui/material_ui.dart';
 import '../api/loomi_api.dart';
 import '../fa/dates.dart';
 import '../local/items_store.dart';
+import '../local/reminders.dart';
 import '../local/session.dart';
 import 'desktop.dart';
 import 'items_ui.dart';
+import 'reminder_settings.dart';
 import 'theme.dart';
 import 'update_banner.dart';
 
@@ -26,6 +28,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _live = false;
   int _devicesTick = 0;
   StreamSubscription<Map<String, dynamic>>? _sub;
+  StreamSubscription<NoticeAction>? _notices;
   Timer? _retry;
 
   LoomiApi get _api => widget.session.api;
@@ -33,13 +36,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(itemsProvider.notifier).refresh());
+    Future.microtask(() async {
+      final items = ref.read(itemsProvider.notifier);
+      await items.refresh();
+      final launch = Reminders.instance.takeLaunch(); // opened from a notification
+      if (launch != null) await items.onNotice(launch.itemId, launch.action);
+      await Reminders.instance.askPermission();
+    });
+    _notices = Reminders.instance.responses.listen((a) => ref.read(itemsProvider.notifier).onNotice(a.itemId, a.action));
     _connectLive();
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _notices?.cancel();
     _retry?.cancel();
     super.dispose();
   }
@@ -54,6 +65,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ref.read(itemsProvider.notifier).refresh(); // also sends anything typed while offline
           case 'items':
             ref.read(itemsProvider.notifier).refresh();
+          case 'reminder':
+            if (ev['item'] is Map<String, dynamic>) Reminders.instance.fromServer(Item.fromJson(ev['item'] as Map<String, dynamic>));
           case 'devices':
             setState(() => _devicesTick++);
         }
@@ -143,7 +156,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.wb_sunny_outlined), selectedIcon: Icon(Icons.wb_sunny_rounded), label: 'امروز'),
           NavigationDestination(icon: Icon(Icons.inventory_2_outlined), selectedIcon: Icon(Icons.inventory_2_rounded), label: 'همه‌چیز'),
-          NavigationDestination(icon: Icon(Icons.devices_outlined), selectedIcon: Icon(Icons.devices_rounded), label: 'دستگاه‌ها'),
+          NavigationDestination(icon: Icon(Icons.tune_outlined), selectedIcon: Icon(Icons.tune_rounded), label: 'تنظیمات'),
         ],
       ),
     );
@@ -254,7 +267,7 @@ class _DevicesViewState extends ConsumerState<DevicesView> {
       onRefresh: _load,
       color: Loomi.violet,
       child: ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 24), children: [
-        Text('دستگاه‌ها', style: t.headlineMedium),
+        Text('تنظیمات', style: t.headlineMedium),
         const SizedBox(height: 12),
         GlassCard(
           highlight: true,
@@ -271,6 +284,8 @@ class _DevicesViewState extends ConsumerState<DevicesView> {
             ])),
           ]),
         ),
+        const SectionTitle('یادآوری‌ها'),
+        const ReminderSettingsCard(),
         SectionTitle('دستگاه‌های جفت‌شده',
             trailing: TextButton.icon(onPressed: _invite, icon: const Icon(Icons.add_rounded), label: const Text('دستگاه تازه'))),
         if (_error != null) Text(_error!, style: const TextStyle(color: Loomi.danger)),

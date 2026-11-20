@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'local/reminders.dart';
 import 'local/session.dart';
 import 'ui/home_screen.dart';
 import 'ui/pair_screen.dart';
@@ -10,6 +11,7 @@ import 'ui/window_chrome.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initWindow();
+  await Reminders.instance.init();
   runApp(const ProviderScope(child: LoomiApp()));
 }
 

@@ -58,6 +58,17 @@ int _g2d(int gy, int gm, int gd) {
   return (jy: jy, jm: 7 + _div(k, 30), jd: _mod(k, 30) + 1);
 }
 
+/// Jalali → Gregorian (local midnight).
+DateTime toGregorian(int jy, int jm, int jd) {
+  final r = _jalCal(jy);
+  final jdn = _g2d(r.gy, 3, r.march) + (jm - 1) * 31 - _div(jm, 7) * (jm - 7) + jd - 1;
+  final g = _d2g(jdn);
+  return DateTime(g.gy, g.gm, g.gd);
+}
+
+/// Days in a Jalali month (Esfand has 30 in leap years).
+int jalaliMonthLength(int jy, int jm) => jm <= 6 ? 31 : jm <= 11 ? 30 : (_jalCal(jy).leap == 0 ? 30 : 29);
+
 const jalaliMonths = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
 // DateTime.weekday: Monday = 1 … Sunday = 7
 const weekdays = {1: 'دوشنبه', 2: 'سه‌شنبه', 3: 'چهارشنبه', 4: 'پنجشنبه', 5: 'جمعه', 6: 'شنبه', 7: 'یکشنبه'};

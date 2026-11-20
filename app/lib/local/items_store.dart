@@ -1,5 +1,6 @@
 // Items on this device: a cache of the last list (so the app opens instantly and works offline)
 // and an outbox of captures typed while offline — sent as soon as the server is reachable.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -7,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/loomi_api.dart';
+import 'reminders.dart';
 import 'session.dart';
 
 class PendingCapture {
@@ -50,12 +52,14 @@ class ItemsController extends Notifier<ItemsState> {
     final pending = (jsonDecode(p.getString(_kOutbox) ?? '[]') as List).map((e) => PendingCapture.fromJson(e as Map<String, dynamic>)).toList();
     if (state.loaded) return; // a fresher server list already arrived
     state = state.copy(items: items, pending: pending);
+    unawaited(Reminders.instance.sync(items));
   }
 
   Future<void> _save() async {
     final p = await SharedPreferences.getInstance();
     await p.setString(_kItems, jsonEncode(state.items.map((e) => e.toJson()).toList()));
     await p.setString(_kOutbox, jsonEncode(state.pending.map((e) => e.toJson()).toList()));
+    unawaited(Reminders.instance.sync(state.items));
   }
 
   /// Fetch everything from the server (open + recently done), then send any queued captures.
@@ -63,6 +67,14 @@ class ItemsController extends Notifier<ItemsState> {
     final api = _api;
     if (api == null) return;
     try {
+      // buttons pressed in notifications while offline
+      for (final a in await takeQueuedActions()) {
+        try {
+          await applyAction(api, a.itemId, a.action);
+        } on LoomiApiError catch (e) {
+          if (e.status == null) await queueAction(a.itemId, a.action); // still offline
+        }
+      }
       final items = await api.items(status: 'all');
       state = state.copy(items: items, loaded: true, clearError: true);
       await _save();
@@ -128,6 +140,32 @@ class ItemsController extends Notifier<ItemsState> {
         'allDay': ?allDay,
       }, (i) => _with(i, title: title, type: type, dueAt: dueAt, clearDue: clearDue, allDay: allDay));
 
+  /// «Remind me later».
+  Future<void> snooze(Item it, [int minutes = snoozeMinutes]) async {
+    final before = state.items;
+    final at = DateTime.now().add(Duration(minutes: minutes));
+    state = state.copy(items: before.map((i) => i.id == it.id ? _with(i, remindAt: at) : i).toList());
+    try {
+      final fresh = await _api?.snooze(it.id, minutes);
+      if (fresh != null) state = state.copy(items: state.items.map((i) => i.id == it.id ? fresh : i).toList());
+      await _save();
+    } on LoomiApiError catch (e) {
+      state = state.copy(items: before, error: e.message);
+    }
+  }
+
+  /// A notification button: done / later / open.
+  Future<void> onNotice(String? itemId, String action) async {
+    if (itemId == null) return;
+    final it = state.items.where((i) => i.id == itemId).firstOrNull;
+    if (it == null) {
+      if (action != 'open') await queueAction(itemId, action);
+      return refresh();
+    }
+    if (action == 'done') return setDone(it, true);
+    if (action == 'later') return snooze(it);
+  }
+
   Future<void> remove(Item it) async {
     final before = state.items;
     state = state.copy(items: before.where((i) => i.id != it.id).toList());
@@ -151,17 +189,24 @@ class ItemsController extends Notifier<ItemsState> {
     }
   }
 
-  static Item _with(Item i, {String? title, ItemType? type, DateTime? dueAt, bool clearDue = false, bool? allDay, bool? done}) => Item(
-        id: i.id, type: type ?? i.type, title: title ?? i.title, notes: i.notes,
-        dueAt: clearDue ? null : dueAt ?? i.dueAt, allDay: allDay ?? i.allDay,
-        people: i.people, place: i.place, done: done ?? i.done, createdAt: i.createdAt,
-      );
+  static Item _with(Item i, {String? title, ItemType? type, DateTime? dueAt, bool clearDue = false, bool? allDay, bool? done, DateTime? remindAt}) {
+    final isDone = done ?? i.done;
+    final due = clearDue ? null : dueAt ?? i.dueAt;
+    // a new time means a fresh reminder; done items never remind
+    final remind = isDone ? null : remindAt ?? (clearDue || dueAt != null ? due : i.remindAt ?? due);
+    return Item(
+      id: i.id, type: type ?? i.type, title: title ?? i.title, notes: i.notes,
+      dueAt: due, allDay: allDay ?? i.allDay,
+      people: i.people, place: i.place, done: isDone, createdAt: i.createdAt, remindAt: remind,
+    );
+  }
 
   Future<void> clearLocal() async {
     final p = await SharedPreferences.getInstance();
     await p.remove(_kItems);
     await p.remove(_kOutbox);
     state = const ItemsState();
+    await Reminders.instance.sync(const []); // no reminders for a removed device
   }
 }
 

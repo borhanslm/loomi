@@ -7,19 +7,23 @@ export interface Item {
   id: string; type: ItemType; title: string; notes: string | null;
   dueAt: string | null; allDay: boolean; people: string[]; place: string | null;
   done: boolean; doneAt: string | null; createdAt: string; updatedAt: string; captureId: string | null;
+  /** When Loomi reminds: the snoozed time, else dueAt. Null for done items. */
+  remindAt: string | null;
 }
 
 type Row = {
   id: string; type: ItemType; title: string; notes: string | null; due_at: Date | string | null; all_day: boolean;
   people: string[] | string; place: string | null; done_at: Date | string | null; created_at: Date | string; updated_at: Date | string; capture_id: string | null;
+  remind_at: Date | string | null;
 };
 const iso = (d: Date | string | null) => (d ? new Date(d).toISOString() : null);
 const toItem = (r: Row): Item => ({
   id: r.id, type: r.type, title: r.title, notes: r.notes, dueAt: iso(r.due_at), allDay: r.all_day,
   people: typeof r.people === 'string' ? JSON.parse(r.people) : r.people ?? [], place: r.place,
   done: !!r.done_at, doneAt: iso(r.done_at), createdAt: iso(r.created_at)!, updatedAt: iso(r.updated_at)!, captureId: r.capture_id,
+  remindAt: r.done_at ? null : iso(r.remind_at ?? r.due_at),
 });
-const COLS = 'id, type, title, notes, due_at, all_day, people, place, done_at, created_at, updated_at, capture_id';
+const COLS = 'id, type, title, notes, due_at, all_day, people, place, done_at, created_at, updated_at, capture_id, remind_at';
 
 /** Save a capture and its items. Same clientId twice (an app retrying offline captures) → same result. */
 export async function saveCapture(db: Db, userId: number, deviceId: string | null, text: string, clientId: string | null, u: Understanding): Promise<{ captureId: string; items: Item[]; duplicate: boolean }> {
@@ -77,6 +81,7 @@ export async function updateItem(db: Db, userId: number, id: string, p: ItemPatc
     const v = p.dueAt === '' ? null : p.dueAt; // the HTTP layer may turn null into ''
     if (v !== null && Number.isNaN(Date.parse(v))) throw new ItemError('زمان نامعتبر است.');
     set('due_at', v);
+    sets.push('remind_at = NULL', 'reminded_at = NULL'); // a new time means a fresh reminder
   }
   if (p.allDay !== undefined) set('all_day', p.allDay);
   if (p.done !== undefined) sets.push(p.done ? 'done_at = coalesce(done_at, now())' : 'done_at = NULL');
@@ -88,4 +93,29 @@ export async function updateItem(db: Db, userId: number, id: string, p: ItemPatc
 
 export async function deleteItem(db: Db, userId: number, id: string): Promise<boolean> {
   return (await db.query(`UPDATE items SET deleted_at = now(), updated_at = now() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING id`, [id, userId])).length > 0;
+}
+
+/** «Remind me later»: move this item's reminder `minutes` from now (its due time stays). */
+export async function snoozeItem(db: Db, userId: number, id: string, minutes: number): Promise<Item | null> {
+  const rows = await db.query<Row>(
+    `UPDATE items SET remind_at = now() + ($3::int * interval '1 minute'), reminded_at = NULL, updated_at = now()
+     WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING ${COLS}`, [id, userId, minutes]);
+  return rows.length ? toItem(rows[0]) : null;
+}
+
+/**
+ * Reminders that are due at `now` and not yet sent; marks them sent. Skips anything more than
+ * `graceMin` late (a server that was down all night shouldn't fire yesterday's reminders) and
+ * items saved after their own time («I had a meeting this morning»).
+ */
+export async function takeDueReminders(db: Db, now: Date, graceMin = 360): Promise<{ userId: number; item: Item }[]> {
+  const rows = await db.query<Row & { user_id: number | string }>(
+    `UPDATE items SET reminded_at = $1
+     WHERE done_at IS NULL AND deleted_at IS NULL
+       AND coalesce(remind_at, due_at) <= $1
+       AND coalesce(remind_at, due_at) > $1::timestamptz - ($2::int * interval '1 minute')
+       AND coalesce(remind_at, due_at) >= created_at - interval '1 minute'
+       AND (reminded_at IS NULL OR reminded_at < coalesce(remind_at, due_at))
+     RETURNING user_id, ${COLS}`, [now.toISOString(), graceMin]);
+  return rows.map(r => ({ userId: Number(r.user_id), item: toItem(r) }));
 }

@@ -153,7 +153,7 @@ class _Sidebar extends ConsumerWidget {
               selected: view == DeskView.type(t), onTap: () => onGo(DeskView.type(t)),
             ),
           const Spacer(),
-          _NavItem(icon: Icons.devices_outlined, label: 'دستگاه‌ها', hint: 'Ctrl 3', selected: view == DeskView.devices, onTap: () => onGo(DeskView.devices)),
+          _NavItem(icon: Icons.tune_rounded, label: 'تنظیمات', hint: 'Ctrl 3', selected: view == DeskView.devices, onTap: () => onGo(DeskView.devices)),
           const Divider(height: 22),
           Row(children: [
             StatusPill(online: live),

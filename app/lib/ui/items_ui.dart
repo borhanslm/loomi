@@ -6,6 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import '../api/loomi_api.dart';
 import '../fa/dates.dart';
 import '../local/items_store.dart';
+import '../local/session.dart';
+import 'jalali_picker.dart';
 import 'theme.dart';
 
 ({IconData icon, Color color, String label}) typeStyle(ItemType t) => switch (t) {
@@ -19,8 +21,15 @@ import 'theme.dart';
 
 // ── capture ───────────────────────────────────────────────────────────
 
-/// Send a capture and tell the user what Loomi made of it.
-Future<void> submitCapture(BuildContext context, WidgetRef ref, String text) async {
+/// A sentence ending in «؟» is a question for Loomi, not something to save.
+bool looksLikeQuestion(String s) {
+  final t = s.trim();
+  return t.endsWith('؟') || t.endsWith('?');
+}
+
+/// Send a capture and tell the user what Loomi made of it. Questions get an answer instead.
+Future<void> submitCapture(BuildContext context, WidgetRef ref, String text, {bool forceSave = false}) async {
+  if (!forceSave && looksLikeQuestion(text)) return askLoomi(context, ref, text);
   final m = ScaffoldMessenger.of(context);
   // On wide screens keep the notice compact instead of stretching across the window.
   final width = MediaQuery.sizeOf(context).width >= 900 ? 460.0 : null;
@@ -37,12 +46,86 @@ Future<void> submitCapture(BuildContext context, WidgetRef ref, String text) asy
   m.showSnackBar(SnackBar(content: Text(msg), width: width));
 }
 
+/// Ask Loomi about your own items and show the answer.
+Future<void> askLoomi(BuildContext context, WidgetRef ref, String question) async {
+  final api = ref.read(sessionProvider).value?.api;
+  if (api == null) return;
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: Loomi.ink2,
+      insetPadding: const EdgeInsets.all(20),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520, maxHeight: 620),
+        child: _AnswerView(question: question, answer: api.ask(question), onSave: () {
+          Navigator.pop(ctx);
+          submitCapture(context, ref, question, forceSave: true);
+        }),
+      ),
+    ),
+  );
+}
+
+class _AnswerView extends ConsumerWidget {
+  const _AnswerView({required this.question, required this.answer, required this.onSave});
+  final String question;
+  final Future<AskResult> answer;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const LoomiLogo(size: 30),
+          const SizedBox(width: 10),
+          Expanded(child: Text(question, style: t.titleMedium?.copyWith(color: Loomi.violetSoft))),
+        ]),
+        const SizedBox(height: 14),
+        Flexible(
+          child: FutureBuilder<AskResult>(
+            future: answer,
+            builder: (context, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const Padding(padding: EdgeInsets.all(28), child: Center(child: CircularProgressIndicator(color: Loomi.violet)));
+              }
+              if (snap.hasError) {
+                final e = snap.error;
+                return Text(e is LoomiApiError ? e.message : 'جواب نرسید. دوباره امتحان کنید.', style: const TextStyle(color: Loomi.danger));
+              }
+              final r = snap.data!;
+              // show the items as they are now on this device (fresh done/undone state)
+              final local = ref.watch(itemsProvider).items;
+              final items = [for (final i in r.items) local.where((l) => l.id == i.id).firstOrNull ?? i];
+              return ListView(shrinkWrap: true, children: [
+                SelectableText(r.answer, style: t.bodyLarge?.copyWith(height: 1.7)),
+                if (r.warning != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(r.warning!, style: t.bodySmall)),
+                if (items.isNotEmpty) const SizedBox(height: 12),
+                for (final i in items) ItemTile(item: i),
+              ]);
+            },
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          TextButton.icon(onPressed: onSave, icon: const Icon(Icons.bookmark_add_outlined), label: const Text('سؤال نبود؛ ذخیره‌اش کن')),
+          const Spacer(),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('بستن')),
+        ]),
+      ]),
+    );
+  }
+}
+
 /// Example sentences shown when the list is empty — tap to try one.
 const captureExamples = [
   'فردا ساعت ۱۰ جلسه با علی، قبلش قرارداد رو چاپ کنم',
   'یه ساعت دیگه یادم بنداز به مامان زنگ بزنم',
   'شیر و نون و تخم‌مرغ بخرم',
   'ایده: یه کافه کتاب کنار دانشگاه',
+  'فردا چی کار دارم؟',
 ];
 
 class CaptureBar extends ConsumerStatefulWidget {
@@ -181,6 +264,8 @@ class ItemTile extends ConsumerWidget {
                       _Chip(icon: st.icon, text: st.label, color: st.color),
                       if (item.dueAt != null)
                         _Chip(icon: Icons.schedule_rounded, text: whenLabel(item.dueAt!, allDay: item.allDay), color: overdue ? Loomi.danger : Loomi.violetSoft),
+                      if (item.remindAt != null && (item.dueAt == null || item.remindAt!.difference(item.dueAt!).inMinutes.abs() > 1))
+                        _Chip(icon: Icons.snooze_rounded, text: whenLabel(item.remindAt!, allDay: false), color: Loomi.amber),
                       for (final p in item.people) _Chip(icon: Icons.person_outline_rounded, text: p, color: Loomi.muted),
                       if (item.place != null) _Chip(icon: Icons.place_outlined, text: item.place!, color: Loomi.muted),
                     ]),
@@ -263,7 +348,7 @@ class _ItemEditorState extends ConsumerState<ItemEditor> {
 
   Future<void> _pickDue() async {
     final now = DateTime.now();
-    final d = await showDatePicker(context: context, initialDate: _due ?? now, firstDate: now.subtract(const Duration(days: 365)), lastDate: now.add(const Duration(days: 3650)));
+    final d = await showJalaliDatePicker(context, initial: _due ?? now);
     if (d == null || !mounted) return;
     final t = await showTimePicker(context: context, initialTime: _due != null && !_allDay ? TimeOfDay.fromDateTime(_due!) : const TimeOfDay(hour: 9, minute: 0));
     setState(() {

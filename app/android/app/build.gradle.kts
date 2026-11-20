@@ -14,12 +14,15 @@ plugins {
 
 android {
     namespace = "app.loomi.loomi"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_local_notifications needs compileSdk 37+
+    compileSdk = maxOf(flutter.compileSdkVersion, 37)
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // scheduled notifications use java.time on old Android versions
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -65,4 +68,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

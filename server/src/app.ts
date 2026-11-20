@@ -15,7 +15,8 @@ import { parseMasterKey } from './crypto.js';
 import { adminPlugin, adminSetupLink } from './admin/routes.js';
 import type { Fetcher } from './providers.js';
 import { ITEM_TYPES, understand } from './brain/capture.js';
-import { deleteItem, ItemError, listItems, saveCapture, updateItem } from './items.js';
+import { deleteItem, ItemError, listItems, saveCapture, snoozeItem, takeDueReminders, updateItem } from './items.js';
+import { ask } from './brain/ask.js';
 
 export const VERSION = '0.5.0';
 export const API_VERSION = 1;
@@ -52,7 +53,11 @@ export class Bus {
   emit(userId: number, ev: object) { for (const fn of this.byUser.get(userId) ?? []) fn(ev); }
 }
 
-export async function buildApp(opts: { db: Db; config: Config; logger?: boolean; fetcher?: Fetcher }): Promise<FastifyInstance> {
+export async function buildApp(opts: {
+  db: Db; config: Config; logger?: boolean; fetcher?: Fetcher;
+  /** how often to look for due reminders (ms); 0 turns the scheduler off (tests) */
+  reminderEveryMs?: number;
+}): Promise<FastifyInstance> {
   const { db, config } = opts;
   const bus = new Bus();
   // Trust X-Forwarded-For only from a proxy on this machine or the private network (Caddy, nginx),
@@ -162,6 +167,7 @@ export async function buildApp(opts: { db: Db; config: Config; logger?: boolean;
     people: Type.Array(Type.String()), place: Type.Union([Type.String(), Type.Null()]),
     done: Type.Boolean(), doneAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
     createdAt: Type.String({ format: 'date-time' }), updatedAt: Type.String({ format: 'date-time' }), captureId: Type.Union([Type.String(), Type.Null()]),
+    remindAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
   });
   const CaptureBodyT = Type.Object({
     text: Type.String({ minLength: 1, maxLength: 4000 }),
@@ -224,6 +230,53 @@ export async function buildApp(opts: { db: Db; config: Config; logger?: boolean;
     bus.emit(req.device!.userId, { type: 'items' });
     return { ok: true };
   });
+
+  app.post<{ Params: { id: string }; Body: { minutes: number } }>('/v1/items/:id/snooze', {
+    schema: {
+      params: Type.Object({ id: Type.String() }), body: Type.Object({ minutes: Type.Integer({ minimum: 1, maximum: 10_080 }) }),
+      response: { 200: ItemT, 404: ErrorT },
+    },
+  }, async (req, reply) => {
+    const it = await snoozeItem(db, req.device!.userId, req.params.id, req.body.minutes);
+    if (!it) return reply.code(404).send({ error: 'این مورد پیدا نشد.' });
+    bus.emit(req.device!.userId, { type: 'items' });
+    return it;
+  });
+
+  const AskBodyT = Type.Object({
+    question: Type.String({ minLength: 1, maxLength: 1000 }),
+    tzOffset: Type.Optional(Type.Integer({ minimum: -720, maximum: 840 })),
+  });
+  app.post<{ Body: Static<typeof AskBodyT> }>('/v1/ask', {
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+    schema: {
+      body: AskBodyT,
+      response: { 200: Type.Object({
+        answer: Type.String(), via: Type.String(), model: Type.Union([Type.String(), Type.Null()]),
+        warning: Type.Union([Type.String(), Type.Null()]), items: Type.Array(ItemT),
+      }) },
+    },
+  }, async req => ask(db, req.device!.userId, req.body.question, new Date(), req.body.tzOffset ?? 210, { db, masterKey, fetcher: opts.fetcher }));
+
+  // Reminder scheduler: sends {type:'reminder'} to the user's connected apps when an item is due.
+  // Apps also schedule reminders on the device, so one arrives even when the app is closed.
+  const every = opts.reminderEveryMs ?? 20_000;
+  if (every > 0) {
+    let busy = false;
+    const tick = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        for (const r of await takeDueReminders(db, new Date())) {
+          bus.emit(r.userId, { type: 'reminder', item: r.item });
+          bus.emit(r.userId, { type: 'items' });
+        }
+      } catch (e) { app.log.warn({ err: e }, 'reminder tick failed'); } finally { busy = false; }
+    };
+    const timer = setInterval(tick, every);
+    timer.unref();
+    app.addHook('onClose', async () => clearInterval(timer));
+  }
 
   app.get('/v1/live', { websocket: true, schema: { hide: true } }, (socket, req) => {
     const send = (ev: object) => socket.send(JSON.stringify(ev));

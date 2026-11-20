@@ -145,6 +145,14 @@ export function describeNow(now: Date, offsetMin = 210): string {
   return `${WEEKDAYS[weekday(l)]} ${j.jd} ${JALALI_MONTHS[j.jm - 1]} ${j.jy} (میلادی ${l.y}-${String(l.m).padStart(2, '0')}-${String(l.d).padStart(2, '0')})، ساعت ${hh}:${mm}`;
 }
 
+/** «پنجشنبه ۲۸ آبان، ساعت ۱۰:۳۰» (or without the time) — a moment in the user's local time. */
+export function describeAt(at: Date, offsetMin = 210, withTime = true): string {
+  const l = toLocal(at, offsetMin);
+  const j = toJalali(l.y, l.m, l.d);
+  const day = `${WEEKDAYS[weekday(l)]} ${j.jd} ${JALALI_MONTHS[j.jm - 1]}`;
+  return withTime ? `${day}، ساعت ${String(l.h).padStart(2, '0')}:${String(l.min).padStart(2, '0')}` : day;
+}
+
 /** Start and end (UTC) of the user's local day containing `now`. */
 export function localDayRange(now: Date, offsetMin = 210): { start: Date; end: Date } {
   const l = toLocal(now, offsetMin);

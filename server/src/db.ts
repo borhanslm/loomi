@@ -120,6 +120,10 @@ const MIGRATIONS: string[] = [
    );
    CREATE INDEX items_user_due ON items (user_id, due_at) WHERE deleted_at IS NULL;
    CREATE INDEX items_user_created ON items (user_id, created_at DESC) WHERE deleted_at IS NULL;`,
+  // 4: reminders — remind_at overrides due_at (snooze); reminded_at = when the last reminder went out
+  `ALTER TABLE items ADD COLUMN remind_at TIMESTAMPTZ;
+   ALTER TABLE items ADD COLUMN reminded_at TIMESTAMPTZ;
+   CREATE INDEX items_open_due ON items (due_at, remind_at) WHERE done_at IS NULL AND deleted_at IS NULL;`,
 ];
 
 export async function migrate(db: Db): Promise<void> {

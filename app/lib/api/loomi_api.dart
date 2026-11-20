@@ -31,7 +31,7 @@ enum ItemType { task, reminder, shopping, idea, note, event }
 class Item {
   Item({
     required this.id, required this.type, required this.title, this.notes, this.dueAt, this.allDay = false,
-    this.people = const [], this.place, this.done = false, required this.createdAt,
+    this.people = const [], this.place, this.done = false, required this.createdAt, this.remindAt,
   });
   factory Item.fromJson(Map<String, dynamic> j) => Item(
         id: j['id'] as String,
@@ -44,10 +44,12 @@ class Item {
         place: j['place'] as String?,
         done: j['done'] as bool? ?? false,
         createdAt: DateTime.parse(j['createdAt'] as String).toLocal(),
+        remindAt: j['remindAt'] == null ? null : DateTime.parse(j['remindAt'] as String).toLocal(),
       );
   Map<String, dynamic> toJson() => {
         'id': id, 'type': type.name, 'title': title, 'notes': notes, 'dueAt': dueAt?.toUtc().toIso8601String(), 'allDay': allDay,
         'people': people, 'place': place, 'done': done, 'createdAt': createdAt.toUtc().toIso8601String(),
+        'remindAt': remindAt?.toUtc().toIso8601String(),
       };
   final String id, title;
   final ItemType type;
@@ -56,6 +58,9 @@ class Item {
   final bool allDay, done;
   final List<String> people;
   final DateTime createdAt;
+
+  /// When Loomi reminds: a snoozed time, else [dueAt]. Null when done.
+  final DateTime? remindAt;
 }
 
 class CaptureResult {
@@ -63,6 +68,13 @@ class CaptureResult {
   final List<Item> items;
   final String via;
   final String? warning;
+}
+
+class AskResult {
+  AskResult({required this.answer, required this.via, required this.items, this.warning});
+  final String answer, via;
+  final String? warning;
+  final List<Item> items;
 }
 
 /// What the server's pairing QR holds: `{"loomi":1,"url":…,"code":…}`.
@@ -166,6 +178,21 @@ class LoomiApi {
       Item.fromJson(await _send('PATCH', '/v1/items/$id', patch) as Map<String, dynamic>);
 
   Future<void> deleteItem(String id) => _send('DELETE', '/v1/items/$id');
+
+  /// «Remind me later»: the reminder moves [minutes] from now; the due time stays.
+  Future<Item> snooze(String id, int minutes) async =>
+      Item.fromJson(await _send('POST', '/v1/items/$id/snooze', {'minutes': minutes}) as Map<String, dynamic>);
+
+  /// Ask about your own life: «فردا چی کار دارم؟».
+  Future<AskResult> ask(String question) async {
+    final j = await _send('POST', '/v1/ask', {'question': question, 'tzOffset': DateTime.now().timeZoneOffset.inMinutes}) as Map<String, dynamic>;
+    return AskResult(
+      answer: j['answer'] as String,
+      via: j['via'] as String,
+      warning: j['warning'] as String?,
+      items: (j['items'] as List).map((e) => Item.fromJson(e as Map<String, dynamic>)).toList(),
+    );
+  }
 
   /// Live events from the server (device changes now; items, reminders, approvals later).
   Stream<Map<String, dynamic>> live() {
