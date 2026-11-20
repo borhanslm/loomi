@@ -1,4 +1,4 @@
-// Desktop layout (wide windows): sidebar navigation with smart lists and counts, the capture box at
+// Desktop layout (wide windows): sidebar navigation with counts (type lists are filter chips in Everything), the capture box at
 // the top of the page (Ctrl+K), Today in two columns, and item details in a side panel.
 // Keyboard: Ctrl+K / Ctrl+N capture · Ctrl+1 Today · Ctrl+2 Everything · Ctrl+3 Devices · Esc closes the panel.
 import 'package:flutter/services.dart';
@@ -93,7 +93,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     Expanded(
                       child: _view == DeskView.today
                           ? _TodayDesk(onOpen: _open, selectedId: _selectedId, onExample: _prefill)
-                          : _ListDesk(view: _view, onOpen: _open, selectedId: _selectedId, onExample: _prefill),
+                          : _ListDesk(view: _view, onGo: _go, onOpen: _open, selectedId: _selectedId, onExample: _prefill),
                     ),
                   ]),
           ),
@@ -132,7 +132,6 @@ class _Sidebar extends ConsumerWidget {
     final now = DateTime.now();
     final open = items.where((i) => !i.done).toList();
     final todayCount = open.where((i) => i.dueAt != null && (sameDay(i.dueAt!, now) || i.dueAt!.isBefore(now))).length;
-    int typeCount(ItemType t) => open.where((i) => i.type == t).length;
     final host = Uri.tryParse(server)?.host ?? server;
     return Container(
       width: 252,
@@ -145,13 +144,8 @@ class _Sidebar extends ConsumerWidget {
           const Center(child: _Kbd('Ctrl + K')),
           const SizedBox(height: 18),
           _NavItem(icon: Icons.wb_sunny_outlined, label: 'امروز', count: todayCount, hint: 'Ctrl 1', selected: view == DeskView.today, onTap: () => onGo(DeskView.today)),
-          _NavItem(icon: Icons.inventory_2_outlined, label: 'همه‌چیز', count: open.length, hint: 'Ctrl 2', selected: view == DeskView.all, onTap: () => onGo(DeskView.all)),
-          const Padding(padding: EdgeInsets.fromLTRB(12, 18, 12, 8), child: Text('فهرست‌ها', style: TextStyle(color: Loomi.muted, fontSize: 12.5, fontWeight: FontWeight.w600))),
-          for (final t in ItemType.values)
-            _NavItem(
-              icon: typeStyle(t).icon, iconColor: typeStyle(t).color, label: _plural(t), count: typeCount(t),
-              selected: view == DeskView.type(t), onTap: () => onGo(DeskView.type(t)),
-            ),
+          // the type lists (tasks, shopping…) live inside «همه‌چیز» as filters, so the sidebar stays free
+          _NavItem(icon: Icons.inventory_2_outlined, label: 'همه‌چیز', count: open.length, hint: 'Ctrl 2', selected: view == DeskView.all || view.type != null, onTap: () => onGo(DeskView.all)),
           const Spacer(),
           _NavItem(icon: Icons.tune_rounded, label: 'تنظیمات', hint: 'Ctrl 3', selected: view == DeskView.devices, onTap: () => onGo(DeskView.devices)),
           const Divider(height: 22),
@@ -176,14 +170,13 @@ String _plural(ItemType t) => switch (t) {
     };
 
 class _NavItem extends StatefulWidget {
-  const _NavItem({required this.icon, required this.label, required this.selected, required this.onTap, this.count, this.hint, this.iconColor});
+  const _NavItem({required this.icon, required this.label, required this.selected, required this.onTap, this.count, this.hint});
   final IconData icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final int? count;
   final String? hint;
-  final Color? iconColor;
   @override
   State<_NavItem> createState() => _NavItemState();
 }
@@ -216,7 +209,7 @@ class _NavItemState extends State<_NavItem> {
                 border: Border.all(color: sel ? Loomi.violetSoft.withValues(alpha: .25) : Colors.transparent),
               ),
               child: Row(children: [
-                Icon(widget.icon, size: 20, color: sel ? Colors.white : (widget.iconColor ?? Loomi.muted)),
+                Icon(widget.icon, size: 20, color: sel ? Colors.white : Loomi.muted),
                 const SizedBox(width: 12),
                 Expanded(child: Text(widget.label, style: TextStyle(color: sel || _hover ? Loomi.text : Loomi.muted, fontWeight: sel ? FontWeight.w700 : FontWeight.w500, fontSize: 14.5))),
                 if (_hover && widget.hint != null && !sel)
@@ -430,8 +423,9 @@ class _TodayDesk extends ConsumerWidget {
 }
 
 class _ListDesk extends ConsumerStatefulWidget {
-  const _ListDesk({required this.view, required this.onOpen, required this.selectedId, required this.onExample});
+  const _ListDesk({required this.view, required this.onGo, required this.onOpen, required this.selectedId, required this.onExample});
   final DeskView view;
+  final void Function(DeskView) onGo;
   final void Function(Item) onOpen;
   final String? selectedId;
   final void Function(String) onExample;
@@ -468,6 +462,8 @@ class _ListDeskState extends ConsumerState<_ListDesk> {
           const SizedBox(width: 12),
           FilterChip(label: const Text('نمایش انجام‌شده‌ها'), selected: _showDone, onSelected: (v) => setState(() => _showDone = v)),
         ]),
+        const SizedBox(height: 12),
+        _TypeFilter(selected: type, onPick: (t) => widget.onGo(t == null ? DeskView.all : DeskView.type(t))),
         const SizedBox(height: 16),
         if (list.isEmpty)
           EmptyState(
@@ -478,6 +474,34 @@ class _ListDeskState extends ConsumerState<_ListDesk> {
         for (final i in list) ItemTile(item: i, onOpen: () => widget.onOpen(i), selected: i.id == widget.selectedId),
       ]),
     );
+  }
+}
+
+/// «همه / کارها / یادآورها / خرید / …» with open counts — one row instead of six sidebar entries.
+class _TypeFilter extends ConsumerWidget {
+  const _TypeFilter({required this.selected, required this.onPick});
+  final ItemType? selected;
+  final void Function(ItemType?) onPick;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final open = ref.watch(itemsProvider).items.where((i) => !i.done).toList();
+    Widget chip(ItemType? t) {
+      final st = t == null ? null : typeStyle(t);
+      final n = t == null ? open.length : open.where((i) => i.type == t).length;
+      final on = selected == t;
+      return ChoiceChip(
+        key: ValueKey('filter-${t?.name ?? 'all'}'),
+        avatar: Icon(st?.icon ?? Icons.inventory_2_outlined, size: 18, color: on ? Colors.white : st?.color ?? Loomi.violetSoft),
+        label: Text(n > 0 ? '${t == null ? 'همه' : _plural(t)}  ${faDigits(n)}' : (t == null ? 'همه' : _plural(t))),
+        selected: on,
+        showCheckmark: false,
+        selectedColor: Loomi.violet.withValues(alpha: .55),
+        onSelected: (_) => onPick(t),
+      );
+    }
+
+    return Wrap(spacing: 8, runSpacing: 8, children: [chip(null), for (final t in ItemType.values) chip(t)]);
   }
 }
 
