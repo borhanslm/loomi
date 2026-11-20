@@ -18,7 +18,7 @@ import { ITEM_TYPES, understand } from './brain/capture.js';
 import { deleteItem, ItemError, listItems, saveCapture, snoozeItem, takeDueReminders, updateItem } from './items.js';
 import { ask } from './brain/ask.js';
 
-export const VERSION = '0.5.0';
+export const VERSION = '0.6.0';
 export const API_VERSION = 1;
 
 declare module 'fastify' {
