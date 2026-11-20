@@ -20,7 +20,7 @@ import { ask } from './brain/ask.js';
 import { canSpeak, hear, NoVoiceError, soundsLikeQuestion, speak } from './voice.js';
 import { AiError } from './ai/openai-compat.js';
 
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';
 export const API_VERSION = 1;
 
 declare module 'fastify' {
